@@ -1,7 +1,14 @@
-import * as THREE from '../../assets/js/three.module.js';
+/*
+ * Handling multiple layers for selective visualization
+ * Inspired from "three/examples/webgl_layers.html"
+ */
 
-import Stats from '../../assets/js/stats.module.js';
-import { GUI } from '../../assets/js/dat.gui.module.js';
+import * as THREE from '../../assets/js/three/build/three';
+
+import Stats from '../../assets/js/three/examples/jsm/libs/stats.module.js';
+import { GUI } from '../../assets/js/three/examples/jsm/libs/dat.gui.module.js';
+
+import {OBJLoader} from '../../assets/js/three/examples/jsm/loaders/OBJLoader.js';
 
 var container, stats;
 var camera, scene, renderer;
@@ -34,31 +41,61 @@ function init() {
 
 	var colors = [ 0xff0000, 0x00ff00, 0x0000ff ];
 	var geometry = new THREE.BoxBufferGeometry( 20, 20, 20 );
+    var loader = new THREE.OBJLoader();
+    loader.load( 'https://threejs.org/examples/models/obj/walt/WaltHead.obj', function ( obj ) {
+
+  	    for ( var i = 0; i < 100; i ++ ) {
+
+    	    var layer = ( i % 3 );
+
+    	    var object = obj.children[ 0 ].clone();
+
+            object.material = new THREE.MeshLambertMaterial( { color: colors[ layer ] } );
+
+            object.position.x = Math.random() * 800 - 400;
+            object.position.y = Math.random() * 800 - 400;
+            object.position.z = Math.random() * 800 - 400;
+
+            object.rotation.x = Math.random() * 2 * Math.PI;
+            object.rotation.y = Math.random() * 2 * Math.PI;
+            object.rotation.z = Math.random() * 2 * Math.PI;
+
+            object.scale.x = Math.random() + 0.5;
+            object.scale.y = Math.random() + 0.5;
+            object.scale.z = Math.random() + 0.5;
+
+            object.layers.set( layer );
+
+            scene.add( object );
+
+        }
+
+    } );
 	var layer;
 
-	for ( var i = 0; i < 300; i ++ ) {
+	// for ( var i = 0; i < 300; i ++ ) {
 
-		layer = ( i % 3 );
+	// 	layer = ( i % 3 );
 
-		var object = new THREE.Mesh( geometry, new THREE.MeshLambertMaterial( { color: colors[ layer ] } ) );
+	// 	var object = new THREE.Mesh( geometry, new THREE.MeshLambertMaterial( { color: colors[ layer ] } ) );
 
-		object.position.x = Math.random() * 800 - 400;
-		object.position.y = Math.random() * 800 - 400;
-		object.position.z = Math.random() * 800 - 400;
+	// 	object.position.x = Math.random() * 800 - 400;
+	// 	object.position.y = Math.random() * 800 - 400;
+	// 	object.position.z = Math.random() * 800 - 400;
 
-		object.rotation.x = Math.random() * 2 * Math.PI;
-		object.rotation.y = Math.random() * 2 * Math.PI;
-		object.rotation.z = Math.random() * 2 * Math.PI;
+	// 	object.rotation.x = Math.random() * 2 * Math.PI;
+	// 	object.rotation.y = Math.random() * 2 * Math.PI;
+	// 	object.rotation.z = Math.random() * 2 * Math.PI;
 
-		object.scale.x = Math.random() + 0.5;
-		object.scale.y = Math.random() + 0.5;
-		object.scale.z = Math.random() + 0.5;
+	// 	object.scale.x = Math.random() + 0.5;
+	// 	object.scale.y = Math.random() + 0.5;
+	// 	object.scale.z = Math.random() + 0.5;
 
-		object.layers.set( layer );
+	// 	object.layers.set( layer );
 
-		scene.add( object );
+	// 	scene.add( object );
 
-	}
+	// }
 
 	renderer = new THREE.WebGLRenderer();
 	renderer.setPixelRatio( window.devicePixelRatio );
@@ -105,16 +142,13 @@ function onWindowResize() {
 //
 
 function animate() {
-
 	requestAnimationFrame( animate );
-
 	render();
 	stats.update();
 
 }
 
 function render() {
-
 	theta += 0.1;
 
 	camera.position.x = radius * Math.sin( THREE.Math.degToRad( theta ) );
