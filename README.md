@@ -1,5 +1,8 @@
 # FeteScienceDemo
 
+
+![Wheat grain](docs/visupoc2.png)
+
 ## Getting started
 THREE.js is added as a submodule. It is necessary to fetch it after cloning this repository:
 ```
