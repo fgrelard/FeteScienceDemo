@@ -3,159 +3,151 @@
  * Inspired from "three/examples/webgl_layers.html"
  */
 
-import * as THREE from '../../assets/js/three/build/three';
+import * as THREE from '../../assets/js/three/build/three.module.js';
 
+import { OrbitControls } from '../../assets/js/three/examples/jsm/controls/OrbitControls.js';
 import Stats from '../../assets/js/three/examples/jsm/libs/stats.module.js';
 import { GUI } from '../../assets/js/three/examples/jsm/libs/dat.gui.module.js';
-
-import {OBJLoader} from '../../assets/js/three/examples/jsm/loaders/OBJLoader.js';
-
-var container, stats;
-var camera, scene, renderer;
-
-var radius = 100, theta = 0;
+import {PLYLoader} from '../../assets/js/three/examples/jsm/loaders/PLYLoader.js';
+var camera, controls, scene, renderer;
 
 init();
 animate();
 
 function init() {
+    // Init scene
+	scene = new THREE.Scene();
+	scene.background = new THREE.Color( 0xcccccc );
+	scene.fog = new THREE.FogExp2( 0xcccccc, 0.01 );
 
-	container = document.createElement( 'div' );
-	document.body.appendChild( container );
+    // Renderer = HTML canvas
+	renderer = new THREE.WebGLRenderer( { antialias: true } );
+	renderer.setPixelRatio( window.devicePixelRatio );
+	renderer.setSize( window.innerWidth, window.innerHeight );
+	document.body.appendChild( renderer.domElement );
 
-	camera = new THREE.PerspectiveCamera( 70, window.innerWidth / window.innerHeight, 1, 10000 );
-	camera.layers.enable( 0 ); // enabled by default
+    // Camera position, adding layers
+	camera = new THREE.PerspectiveCamera( 35, window.innerWidth / window.innerHeight, 1, 100 );
+	camera.position.set( 3, 0.15, 30 );
+    camera.layers.enable( 0 ); // enabled by default
 	camera.layers.enable( 1 );
 	camera.layers.enable( 2 );
 
-	scene = new THREE.Scene();
-	scene.background = new THREE.Color( 0xf0f0f0 );
+    // Ground
+	var plane = new THREE.Mesh(
+		new THREE.PlaneBufferGeometry( 4000, 4000 ),
+		new THREE.MeshPhongMaterial( { color: 0x999999, specular: 0x101010 } )
+	);
+	plane.rotation.x = - Math.PI / 2;
+	plane.position.y = - 3.1;
+	scene.add( plane );
 
-	var light = new THREE.PointLight( 0xffffff, 1 );
-	light.layers.enable( 0 );
-	light.layers.enable( 1 );
-	light.layers.enable( 2 );
+	plane.receiveShadow = true;
 
-	scene.add( camera );
-	camera.add( light );
+	// controls
 
-	var colors = [ 0xff0000, 0x00ff00, 0x0000ff ];
-	var geometry = new THREE.BoxBufferGeometry( 20, 20, 20 );
-    var loader = new THREE.OBJLoader();
-    loader.load( 'https://threejs.org/examples/models/obj/walt/WaltHead.obj', function ( obj ) {
+	controls = new OrbitControls( camera, renderer.domElement );
+	controls.enableDamping = true; // an animation loop is required when either damping or auto-rotation are enabled
+	controls.dampingFactor = 0.05;
 
-  	    for ( var i = 0; i < 100; i ++ ) {
+	controls.screenSpacePanning = false;
 
-    	    var layer = ( i % 3 );
 
-    	    var object = obj.children[ 0 ].clone();
+    var loader = new PLYLoader();
 
-            object.material = new THREE.MeshLambertMaterial( { color: colors[ layer ] } );
+    loader.load( './assets/models/180_1_11_1_PR_test_test042019.ply', function ( geometry ) {
+        geometry.computeVertexNormals();
+        geometry.center();
+		var material = new THREE.MeshStandardMaterial( { color: 0xbb7722, transparent: true, opacity: 0.8},  );
+		var mesh = new THREE.Mesh( geometry, material );
+        var box = new THREE.Box3().setFromObject( mesh );
+        mesh.rotation.x = -Math.PI/2;
+        mesh.rotation.z = Math.PI;
+        box.center( mesh.position ); // this re-sets the mesh position
+        mesh.position.multiplyScalar( - 1 );
 
-            object.position.x = Math.random() * 800 - 400;
-            object.position.y = Math.random() * 800 - 400;
-            object.position.z = Math.random() * 800 - 400;
 
-            object.rotation.x = Math.random() * 2 * Math.PI;
-            object.rotation.y = Math.random() * 2 * Math.PI;
-            object.rotation.z = Math.random() * 2 * Math.PI;
+		mesh.castShadow = true;
+		mesh.receiveShadow = true;
+        mesh.layers.set(1);
+		scene.add( mesh );
+	});
 
-            object.scale.x = Math.random() + 0.5;
-            object.scale.y = Math.random() + 0.5;
-            object.scale.z = Math.random() + 0.5;
+    //Embryo
+    var geometry = new THREE.SphereGeometry(0.7, 64, 64.);
+	var material = new THREE.MeshPhongMaterial( { color: 0xffffff } );
+    var sphere = new THREE.Mesh( geometry, material );
+    sphere.position.set(0,2,0);
+    sphere.layers.set(2);
+    sphere.castShadow = true;
+    scene.add(sphere);
 
-            object.layers.set( layer );
 
-            scene.add( object );
+    // Light
+    var light = new THREE.HemisphereLight( 0x443333, 0x111122 );
+    light.layers.enable(0);
+    light.layers.enable(1);
+    light.layers.enable(2);
+    scene.add( light );
+	addShadowedLight( 1, 1, 1, 0xffffff, 1.35 );
+	addShadowedLight( 0.5, 1, - 1, 0x777777, 1 );
 
-        }
+    var layers = { pericarp: true, embryo: true };
+    renderer.gammaInput = true;
+	renderer.gammaOutput = true;
 
-    } );
-	var layer;
+    renderer.shadowMap.enabled = true;
 
-	// for ( var i = 0; i < 300; i ++ ) {
-
-	// 	layer = ( i % 3 );
-
-	// 	var object = new THREE.Mesh( geometry, new THREE.MeshLambertMaterial( { color: colors[ layer ] } ) );
-
-	// 	object.position.x = Math.random() * 800 - 400;
-	// 	object.position.y = Math.random() * 800 - 400;
-	// 	object.position.z = Math.random() * 800 - 400;
-
-	// 	object.rotation.x = Math.random() * 2 * Math.PI;
-	// 	object.rotation.y = Math.random() * 2 * Math.PI;
-	// 	object.rotation.z = Math.random() * 2 * Math.PI;
-
-	// 	object.scale.x = Math.random() + 0.5;
-	// 	object.scale.y = Math.random() + 0.5;
-	// 	object.scale.z = Math.random() + 0.5;
-
-	// 	object.layers.set( layer );
-
-	// 	scene.add( object );
-
-	// }
-
-	renderer = new THREE.WebGLRenderer();
-	renderer.setPixelRatio( window.devicePixelRatio );
-	renderer.setSize( window.innerWidth, window.innerHeight );
-	container.appendChild( renderer.domElement );
-
-	stats = new Stats();
-	container.appendChild( stats.dom );
-
-	var layers = { red: true, green: true, blue: true };
-
-	//
-	// Init gui
+	// Init gui : menu to select and deselect layers
 	var gui = new GUI();
-	gui.add( layers, 'red' ).onChange( function () {
-
-		camera.layers.toggle( 0 );
-
-	} );
-	gui.add( layers, 'green' ).onChange( function () {
+	gui.add( layers, 'pericarp' ).onChange( function () {
 
 		camera.layers.toggle( 1 );
 
 	} );
-	gui.add( layers, 'blue' ).onChange( function () {
+	gui.add( layers, 'embryo' ).onChange( function () {
 
 		camera.layers.toggle( 2 );
 
 	} );
 
 	window.addEventListener( 'resize', onWindowResize, false );
-
 }
+
+function addShadowedLight( x, y, z, color, intensity ) {
+	var directionalLight = new THREE.DirectionalLight( color, intensity );
+    directionalLight.layers.enable(0);
+    directionalLight.layers.enable(1);
+    directionalLight.layers.enable(2);
+	directionalLight.position.set( x, y, z );
+	scene.add( directionalLight );
+	directionalLight.castShadow = true;
+	var d = 10;
+	directionalLight.shadow.camera.left = - d;
+	directionalLight.shadow.camera.right = d;
+	directionalLight.shadow.camera.top = d;
+	directionalLight.shadow.camera.bottom = - d;
+	directionalLight.shadow.camera.near = 0.01;
+	directionalLight.shadow.camera.far = 30;
+	directionalLight.shadow.mapSize.width = 1024;
+	directionalLight.shadow.mapSize.height = 1024;
+	directionalLight.shadow.bias = - 0.001;
+}
+
 
 function onWindowResize() {
-
 	camera.aspect = window.innerWidth / window.innerHeight;
 	camera.updateProjectionMatrix();
-
 	renderer.setSize( window.innerWidth, window.innerHeight );
-
 }
-
-//
 
 function animate() {
 	requestAnimationFrame( animate );
+	controls.update(); // only required if controls.enableDamping = true, or if controls.autoRotate = true
 	render();
-	stats.update();
 
 }
 
 function render() {
-	theta += 0.1;
-
-	camera.position.x = radius * Math.sin( THREE.Math.degToRad( theta ) );
-	camera.position.y = radius * Math.sin( THREE.Math.degToRad( theta ) );
-	camera.position.z = radius * Math.cos( THREE.Math.degToRad( theta ) );
-	camera.lookAt( scene.position );
-
 	renderer.render( scene, camera );
-
 }

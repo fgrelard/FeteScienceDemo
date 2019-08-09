@@ -33,6 +33,9 @@ class myHandler(BaseHTTPRequestHandler):
 			if self.path.endswith(".css"):
 				mimetype='text/css'
 				sendReply = True
+			if self.path.endswith(".ply"):
+				mimetype='application/octet-stream'
+				sendReply = True
 
 			if sendReply == True:
 				#Open the static file requested and send it
