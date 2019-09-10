@@ -12,7 +12,7 @@ var camera, controls, scene, renderer;
 var time = 0;
 var step = 0.01;
 var firstAnimation = false;
-var groupImages;
+var groupImages, voxelizedMesh=new THREE.Mesh(), mesh=new THREE.Mesh();
 
 
 
@@ -89,52 +89,71 @@ function init() {
 	controls.screenSpacePanning = true;
 
 
-    // Light
-    var light = new THREE.HemisphereLight( 0x443333, 0x111122 );
-    light.layers.enable(0);
-    light.layers.enable(1);
-    light.layers.enable(2);
-    scene.add( light );
-	addShadowedLight( 1, 1, 1, 0xffffff, 1.35 );
-	addShadowedLight( 0.5, -1, 1, 0x777777, 1 );
-
-    var layers = { pericarp: true, embryo: true };
-    renderer.gammaInput = true;
-	renderer.gammaOutput = true;
-
-    renderer.shadowMap.enabled = true;
-
-	// Init gui : menu to select and deselect layers
-	var gui = new GUI();
-	gui.add( layers, 'pericarp' ).onChange( function () {
-
-		camera.layers.toggle( 1 );
-
-	} );
-
     imageGroup();
-    scene.add(groupImages);
+    //scene.add(groupImages);
     camera.lookAt(groupImages.position);
-    addModel();
+
+    var promiseVoxel = loadModel(voxelizedMesh, "./assets/models/180_voxelized.ply");
+    var promiseMesh = loadModel(mesh, "./assets/models/180_1_11_1_PR_test_test042019.ply");
+
+    Promise.all([promiseVoxel, promiseMesh]).then(result => {
+        scaleModel(mesh, voxelizedMesh);
+        mesh.rotation.z = Math.PI;
+        translateModel(mesh);
+        translateModel(voxelizedMesh);
+        scene.add( mesh );
+        scene.add( voxelizedMesh );
+
+        var min = voxelizedMesh.geometry.boundingBox.min;
+        var max = voxelizedMesh.geometry.boundingBox.max;
+        // Light
+        var light = new THREE.HemisphereLight( 0x443333, 0x111122 );
+        light.layers.enable(0);
+        light.layers.enable(1);
+        light.layers.enable(2);
+        scene.add( light );
+	    addShadowedLight( min.x-10 , min.y-10, max.z-20, 0xffffff, 1.8 );
+	    addShadowedLight( min.x-10, max.y+10, max.z+30, 0x777777, 1 );
+
+        renderer.gammaInput = true;
+	    renderer.gammaOutput = true;
+        renderer.shadowMap.enabled = true;
+    });
+
+
 
 	window.addEventListener( 'resize', onWindowResize, false );
 }
 
-function addModel() {
-    var loader = new PLYLoader();
+function scaleModel(model, reference) {
+    var referenceRadius = reference.geometry.boundingSphere.radius;
+    var modelRadius = model.geometry.boundingSphere.radius;
+    var r = referenceRadius / modelRadius;
+    model.scale.set(r, r, r);
+}
 
-    loader.load( "./assets/models/180_1_11_1_PR_test_test042019.ply", function ( geometry ) {
+function translateModel(model) {
+    var box = new THREE.Box3();
+    box.setFromObject( model );
+    var boundingSize = box.getSize();
+    var z = boundingSize.z;
+    model.position.z = z/2;
+}
+
+function loadModel(model, filename) {
+    var loader = new PLYLoader();
+    var p1 =  new Promise(resolve => {
+        loader.load( filename, resolve);
+    });
+    return p1.then(geometry => {
         geometry.computeVertexNormals();
         geometry.center();
 		var material = new THREE.MeshStandardMaterial( { color: 0xbb7722, transparent: true, opacity: 0.8},  );
-		var mesh = new THREE.Mesh( geometry, material );
-        var box = new THREE.Box3().setFromObject( mesh );
-		mesh.castShadow = true;
-		mesh.receiveShadow = true;
-        mesh.layers.set(1);
-		scene.add( mesh );
-	});
-
+        model.geometry = geometry;
+        model.material = material;
+		model.castShadow = true;
+		model.receiveShadow = true;
+    });
 }
 
 function addShadowedLight( x, y, z, color, intensity ) {
@@ -145,13 +164,13 @@ function addShadowedLight( x, y, z, color, intensity ) {
 	directionalLight.position.set( x, y, z );
 	scene.add( directionalLight );
 	directionalLight.castShadow = true;
-	var d = 10;
+	var d = 100;
 	directionalLight.shadow.camera.left = - d;
 	directionalLight.shadow.camera.right = d;
 	directionalLight.shadow.camera.top = d;
 	directionalLight.shadow.camera.bottom = - d;
 	directionalLight.shadow.camera.near = 0.01;
-	directionalLight.shadow.camera.far = 30;
+	directionalLight.shadow.camera.far = 300;
 	directionalLight.shadow.mapSize.width = 1024;
 	directionalLight.shadow.mapSize.height = 1024;
 	directionalLight.shadow.bias = - 0.001;
