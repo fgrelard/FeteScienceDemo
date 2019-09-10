@@ -11,7 +11,7 @@ class myHandler(BaseHTTPRequestHandler):
 	#Handler for the GET requests
 	def do_GET(self):
 		if self.path=="/":
-			self.path="/src/layers.html"
+			self.path="/src/workflow.html"
 
 		try:
 			#Check the file extension required and
@@ -23,6 +23,9 @@ class myHandler(BaseHTTPRequestHandler):
 				sendReply = True
 			if self.path.endswith(".jpg"):
 				mimetype='image/jpg'
+				sendReply = True
+			if self.path.endswith(".png"):
+				mimetype='image/gif'
 				sendReply = True
 			if self.path.endswith(".gif"):
 				mimetype='image/gif'
