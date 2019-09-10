@@ -1,12 +1,18 @@
 #!/usr/bin/python
-from BaseHTTPServer import BaseHTTPRequestHandler,HTTPServer
+import socket
+import http.server
 from os import curdir, sep
+import base64
 
 PORT_NUMBER = 8080
 
+def load_binary(file):
+    with open(file, 'rb') as file:
+        return file.read()
+
 #This class will handles any incoming request from
 #the browser
-class myHandler(BaseHTTPRequestHandler):
+class myHandler(http.server.BaseHTTPRequestHandler):
 
 	#Handler for the GET requests
 	def do_GET(self):
@@ -25,7 +31,7 @@ class myHandler(BaseHTTPRequestHandler):
 				mimetype='image/jpg'
 				sendReply = True
 			if self.path.endswith(".png"):
-				mimetype='image/gif'
+				mimetype='image/png'
 				sendReply = True
 			if self.path.endswith(".gif"):
 				mimetype='image/gif'
@@ -42,12 +48,11 @@ class myHandler(BaseHTTPRequestHandler):
 
 			if sendReply == True:
 				#Open the static file requested and send it
-				f = open(curdir + sep + self.path)
+				f = curdir + sep + self.path
 				self.send_response(200)
 				self.send_header('Content-type',mimetype)
 				self.end_headers()
-				self.wfile.write(f.read())
-				f.close()
+				self.wfile.write(load_binary(f))
 			return
 
 
@@ -57,12 +62,12 @@ class myHandler(BaseHTTPRequestHandler):
 try:
 	#Create a web server and define the handler to manage the
 	#incoming request
-	server = HTTPServer(('', PORT_NUMBER), myHandler)
-	print 'Started httpserver on port ' , PORT_NUMBER
+	server = http.server.HTTPServer(('', PORT_NUMBER), myHandler)
+	print('Started httpserver on port ' , PORT_NUMBER)
 
 	#Wait forever for incoming htto requests
 	server.serve_forever()
 
 except KeyboardInterrupt:
-	print '^C received, shutting down the web server'
+	print('^C received, shutting down the web server')
 	server.socket.close()
