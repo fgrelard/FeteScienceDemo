@@ -54,12 +54,17 @@ function imageAnimation() {
     //     time += 0.1*time > 0.5 ? 0.5 : 0.1*time;
     // }
 
-    voxelizedMesh.geometry.faces = [];
-    for (var face of voxelizedFaces) {
-        if (face.z > 30) {
+    var faces = voxelizedMesh.geometry.faces.slice();
+    var vertices = voxelizedMesh.geometry.vertices.slice();
+    console.log(faces[0]);
+    voxelizedMesh.geometry.faces.length = 0;
+    for (var face of faces) {
+        var v = vertices[face.a];
+        if (v.z > 30) {
             voxelizedMesh.geometry.faces.push(face);
         }
     }
+    console.log(voxelizedMesh.geometry);
     voxelizedMesh.geometry.elementsNeedUpdate = true;
 
     new TWEEN.Tween( voxelizedMesh.material ).to( { opacity: 0 }, 10000 ).start();
@@ -104,21 +109,8 @@ function init() {
     var promiseMesh = loadModel(mesh, "./assets/models/180_1_11_1_PR_test_test042019.ply");
 
     Promise.all([promiseVoxel, promiseMesh]).then(result => {
-        // console.log(voxelizedMesh.geometry);
-        // var faceIndices = voxelizedMesh.geometry.index.array;
-        // var vertices = voxelizedMesh.geometry.attributes.position.array;
-        // var geometry = new THREE.Geometry();
-        // geometry.vertices = vertices.slice();
-        // geometry.faces = faceIndices.slice();
-        // geometry.elementsNeedUpdate = true;
-        // console.log(geometry);
-        // voxelizedMesh.geometry = geometry;
 
-        // for (let i = 0; i < faceIndices.length; i+=3) {
-        //     voxelizedFaces.push(new THREE.Face3(faceIndices[i],faceIndices[i+1], faceIndices[i+2]));
-        // }
-        // console.log(voxelizedFaces[0]);
-
+        extractFaces(voxelizedMesh);
 
         scaleModel(mesh, groupImages);
         scaleModel(voxelizedMesh, groupImages);
@@ -163,6 +155,25 @@ function init() {
 	window.addEventListener( 'resize', onWindowResize, false );
 }
 
+function extractFaces(model) {
+    var faceIndices = model.geometry.index.array;
+    var geometry = new THREE.Geometry();
+    for (let i = 0; i < faceIndices.length; i+=3) {
+        geometry.faces.push(new THREE.Face3(faceIndices[i],faceIndices[i+1], faceIndices[i+2]));
+    }
+    var vertices = model.geometry.attributes.position.array;
+    for (let i = 0; i < vertices.length; i+=3) {
+        geometry.vertices.push(new THREE.Vector3(vertices[i],vertices[i+1], vertices[i+2]));
+    }
+
+    geometry.computeBoundingSphere();
+    geometry.computeBoundingBox();
+    geometry.computeFaceNormals();
+    geometry.computeVertexNormals();
+
+    model.geometry = geometry;
+}
+
 function scaleModel(model, reference) {
     var box = new THREE.Box3();
     box.setFromObject( reference );
@@ -183,7 +194,7 @@ function translateModel(model) {
 function loadModel(model, filename) {
     var loader = new PLYLoader();
     var p1 =  new Promise(resolve => {
-        loader.load( filename, resolve );
+        loader.load( filename, resolve);
     });
     return p1.then(geometry => {
         geometry.computeVertexNormals();
@@ -221,7 +232,6 @@ function onWindowResize() {
 	camera.aspect = window.innerWidth / window.innerHeight;
 	camera.updateProjectionMatrix();
 	renderer.setSize( window.innerWidth, window.innerHeight );
-    console.log(camera.position);
 }
 
 function animate(t) {
