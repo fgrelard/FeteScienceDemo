@@ -16,13 +16,14 @@ import { OutlinePass } from '../../assets/js/three/examples/jsm/postprocessing/O
 import { FXAAShader } from '../../assets/js/three/examples/jsm/shaders/FXAAShader.js';
 
 var camera, controls, scene, renderer;
-var time = 0;
-var step = 1;
 var firstAnimation = false;
+var updatingSweep = false;
+
 var groupImages, voxelizedMesh=new THREE.Mesh(), mesh=new THREE.Mesh();
-var voxelizedFaces = [];
 var sweepingPlane;
+var voxelizedFaces = [];
 var composer;
+
 
 document.body.onkeyup  = function (event) {
     if (event.keyCode == 32) {
@@ -38,7 +39,8 @@ function imageGroup() {
     for (let i = 1; i < nbImages-1; i++) {
         let path = "./assets/images/L_200_1_v2_reduced_" + (nbImages-i) + ".png";
         var img = new THREE.MeshBasicMaterial({ //CHANGED to MeshBasicMaterial
-            map: (new THREE.TextureLoader()).load(path)
+            map: (new THREE.TextureLoader()).load(path),
+            transparent: true,
         });
 
         img.map.magFilter = THREE.NearestFilter;
@@ -56,18 +58,24 @@ function imageGroup() {
 }
 
 function imageAnimation() {
-    // if (Math.floor(time) - Math.floor(time-step) == 1) {
-    //     var index = Math.round(time);
-    //     var length = groupImages.children.length;
-    //     groupImages.remove(groupImages.children[length-1]);
-    //     time += 0.1*time > 0.5 ? 0.5 : 0.1*time;
-    // }
+    scene.add(sweepingPlane);
     voxelizedMesh.geometry.faces.length = 1;
     voxelizedMesh.updateMatrix();
     var scaling = new THREE.Vector3(), rot = new THREE.Quaternion(), pos = new THREE.Vector3();
     voxelizedMesh.matrix.decompose(pos, rot, scaling);
     var vertices = voxelizedMesh.geometry.vertices.slice();
-    new TWEEN.Tween( sweepingPlane.position ).to( {z : -0.1} , 5000).onUpdate(() => {
+    new TWEEN.Tween( sweepingPlane.position ).to( {z : -0.1} , 10000).delay(1500).onUpdate(() => {
+        if (updatingSweep) return;
+        updatingSweep = true;
+
+        //Remove image stack
+        for (var child of groupImages.children) {
+            if (child.position.z > sweepingPlane.position.z) {
+                child.visible = false;
+            }
+        }
+
+        //Reveal mesh
         var tz = voxelizedMesh.position.z;
         for (var i = voxelizedMesh.geometry.faces.length; i < voxelizedFaces.length; i++) {
             var face = voxelizedFaces[i];
@@ -78,6 +86,7 @@ function imageAnimation() {
         }
         voxelizedMesh.material.opacity = 0.8;
         voxelizedMesh.geometry.elementsNeedUpdate = true;
+        updatingSweep = false;
     }).start();
 
 }
@@ -106,8 +115,8 @@ function init() {
 	var renderPass = new RenderPass( scene, camera );
 	composer.addPass( renderPass );
 	var outlinePass = new OutlinePass( new THREE.Vector2( window.innerWidth, window.innerHeight ), scene, camera );
-    outlinePass.edgeStrength = 2;
-    outlinePass.edgeThickness  =2;
+    outlinePass.edgeStrength = 4;
+    outlinePass.edgeThickness = 7;
     outlinePass.edgeGlow = 1;
     outlinePass.pulsePeriod = 3;
     outlinePass.visibleEdgeColor.set( "#0033cc" );
@@ -143,12 +152,11 @@ function init() {
 		new THREE.MeshBasicMaterial( { color: 0x535353,  transparent:true, opacity:0.5 } )
 	);
     sweepingPlane.position.set(0,0,49);
-	scene.add( sweepingPlane );
     outlinePass.selectedObjects = [sweepingPlane];
 
    //Images
     imageGroup();
-    //scene.add(groupImages);
+    scene.add(groupImages);
 
     //Grain models
     var promiseVoxel = loadModel(voxelizedMesh, "./assets/models/180_voxelized.ply");
@@ -290,7 +298,6 @@ function animate(t) {
         imageAnimation();
         firstAnimation = false;
     }
-    time += step;
     TWEEN.update(t);
 }
 
