@@ -16,8 +16,11 @@ class myHandler(http.server.BaseHTTPRequestHandler):
 
 	#Handler for the GET requests
 	def do_GET(self):
-		if self.path=="/":
-			self.path="/src/workflow.html"
+		if self.path == "/":
+			 self.path = "/src/workflow.html"
+
+		elif self.path.endswith(".html"):
+			self.path="/src/" + self.path
 
 		try:
 			#Check the file extension required and
