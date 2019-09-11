@@ -62,21 +62,24 @@ function imageAnimation() {
     //     groupImages.remove(groupImages.children[length-1]);
     //     time += 0.1*time > 0.5 ? 0.5 : 0.1*time;
     // }
-
-    var faces = voxelizedMesh.geometry.faces.slice();
+    voxelizedMesh.geometry.faces.length = 1;
+    voxelizedMesh.updateMatrix();
+    var scaling = new THREE.Vector3(), rot = new THREE.Quaternion(), pos = new THREE.Vector3();
+    voxelizedMesh.matrix.decompose(pos, rot, scaling);
     var vertices = voxelizedMesh.geometry.vertices.slice();
-    console.log(faces[0]);
-    voxelizedMesh.geometry.faces.length = 0;
-    for (var face of faces) {
-        var v = vertices[face.a];
-        if (v.z > 30) {
-            voxelizedMesh.geometry.faces.push(face);
+    new TWEEN.Tween( sweepingPlane.position ).to( {z : -0.1} , 5000).onUpdate(() => {
+        var tz = voxelizedMesh.position.z;
+        for (var i = voxelizedMesh.geometry.faces.length; i < voxelizedFaces.length; i++) {
+            var face = voxelizedFaces[i];
+            var v = vertices[face.c];
+            if (v.z * scaling.z + pos.z > sweepingPlane.position.z) {
+                voxelizedMesh.geometry.faces.push(face);
+            }
         }
-    }
-    console.log(voxelizedMesh.geometry);
-    voxelizedMesh.geometry.elementsNeedUpdate = true;
-    new TWEEN.Tween( sweepingPlane.position ).to( {z : 0} , 5000).start();
-    new TWEEN.Tween( voxelizedMesh.material ).to( { opacity: 0.8 }, 5000 ).start();
+        voxelizedMesh.material.opacity = 0.8;
+        voxelizedMesh.geometry.elementsNeedUpdate = true;
+    }).start();
+
 }
 
 function init() {
@@ -154,7 +157,10 @@ function init() {
     Promise.all([promiseVoxel, promiseMesh]).then(result => {
 
         extractFaces(voxelizedMesh);
-
+        voxelizedFaces = voxelizedMesh.geometry.faces.slice();
+        voxelizedFaces.sort((a,b) => {
+            return  voxelizedMesh.geometry.vertices[b.c].z - voxelizedMesh.geometry.vertices[a.c].z;
+        });
         scaleModel(mesh, groupImages);
         scaleModel(voxelizedMesh, groupImages);
 
@@ -163,7 +169,7 @@ function init() {
 
         translateModel(mesh);
         translateModel(voxelizedMesh);
-        //scene.add( mesh );
+
         scene.add( voxelizedMesh );
 
         var box = new THREE.Box3();
@@ -213,6 +219,7 @@ function extractFaces(model) {
     geometry.computeVertexNormals();
 
     model.geometry = geometry;
+    model.geometryNeedsUpdate = true;
 }
 
 function scaleModel(model, reference) {
