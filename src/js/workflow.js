@@ -99,10 +99,7 @@ function meshAnimation() {
     mesh.updateMatrix();
 
     voxelizedMesh.updateMatrix();
-    var scalingV = new THREE.Vector3(), rotV = new THREE.Quaternion(), posV = new THREE.Vector3();
-    voxelizedMesh.matrix.decompose(posV, rotV, scalingV);
-    var scaling = new THREE.Vector3(), rot = new THREE.Quaternion(), pos = new THREE.Vector3();
-    mesh.matrix.decompose(pos, rot, scaling);
+
 
     var verticesV = voxelizedMesh.geometry.vertices.slice();
     var vertices = mesh.geometry.vertices.slice();

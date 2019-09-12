@@ -15,7 +15,7 @@ import { ShaderPass } from '../../assets/js/three/examples/jsm/postprocessing/Sh
 import { OutlinePass } from '../../assets/js/three/examples/jsm/postprocessing/OutlinePass.js';
 import { FXAAShader } from '../../assets/js/three/examples/jsm/shaders/FXAAShader.js';
 
-const stages = [60, 120, 180, 240, 270, 310];
+const stages = ["simplified_060", "simplified_120"];
 
 var camera, controls, scene, renderer;
 var animation = false;
@@ -30,10 +30,10 @@ document.body.onkeyup  = function (event) {
     }
 };
 
-function matchRuleShort(str, rule) {
-  var escapeRegex = (str) => str.replace(/([.*+?^=!:${}()|\[\]\/\\])/g, "\\$1");
-  return new RegExp("^" + rule.split("*").map(escapeRegex).join(".*") + "$").test(str);
+function growthAnimation() {
+
 }
+
 
 
 function init() {
@@ -50,8 +50,8 @@ function init() {
 
 
     // Camera position
-	camera = new THREE.PerspectiveCamera( 35, window.innerWidth / window.innerHeight, 1, 100000 );
-	camera.position.set( 0, 0, 300 );
+	camera = new THREE.PerspectiveCamera( 35, window.innerWidth / window.innerHeight, 1, 1000000 );
+	camera.position.set( 500, 500, 10000 );
 
     composer = new EffectComposer( renderer );
 	var renderPass = new RenderPass( scene, camera );
@@ -97,21 +97,33 @@ function init() {
     }
 
     Promise.all(promises).then(result => {
+        var scaledNext = result[1].clone();
+        scaledNext.updateMatrix();
+        scaleModel(scaledNext, result[0]);
+        translateModel(scaledNext);
+        extractChildren(scaledNext);
         for (let mesh of result) {
-            mesh.rotation.z = 3*Math.PI/2-0.2;
+            //mesh.rotation.z = 3*Math.PI/2-0.2;
             translateModel(mesh);
-
+            extractChildren(mesh);
             meshes.push(mesh);
-            scene.add(mesh);
+
             var box = new THREE.Box3();
             box.setFromObject(mesh);
             var min = box.min;
             var max = box.max;
         }
 
+        scene.add(meshes[0]);
+        scene.add(scaledNext);
+        for (let child of scaledNext.children) {
+            child.visible  = false;
+        }
+
+        addMorphTargets(meshes[0], scaledNext, meshes[1]);
+
         //Camera
         camera.up = new THREE.Vector3(0,0,1);
-
         //Controls
         controls = new OrbitControls( camera, renderer.domElement );
         //camera.lookAt();
@@ -133,6 +145,7 @@ function init() {
 
 
 
+
 function scaleModel(model, reference) {
     var box = new THREE.Box3();
     box.setFromObject( reference );
@@ -145,9 +158,98 @@ function scaleModel(model, reference) {
 function translateModel(model) {
     var box = new THREE.Box3();
     box.setFromObject( model );
+    console.log(box);
     var boundingSize = box.getSize();
     var z = boundingSize.z;
+    console.log(model.position.z);
     model.position.z = z/2;
+    console.log(model.position.z);
+}
+
+function extractChildren(model) {
+    var positions = model.geometry.attributes.position.array;
+    var faces = model.geometry.index.array;
+
+    model.updateMatrix();
+    var matrix = model.matrix;
+    console.log(faces.length);
+    for (let i = 0; i < faces.length; i+=3) {
+        let actualFace = faces.slice(i, i+3);
+        let vertices = [];
+        for (let index of actualFace) {
+            var v = new THREE.Vector3(positions[index*3],
+                                      positions[index*3+1],
+                                      positions[index*3+2]);
+            v.applyMatrix4(model.matrix);
+            vertices.push(v.x, v.y, v.z);
+        }
+        let geom = new THREE.BufferGeometry();
+        geom.addAttribute( 'position', new THREE.BufferAttribute( new Float32Array(vertices), 3 ) );
+
+        let child = new THREE.Mesh(geom, new THREE.MeshBasicMaterial({color: 0xff0000}));
+
+        model.children.push(child);
+
+    }
+}
+
+function addMorphTargets(model, referenceModel, nextModel) {
+
+    model.children.forEach(function(child) {
+        var morphAttributes = child.geometry.morphAttributes;
+        morphAttributes.position = [];
+        child.material.morphTargets = true;
+        var position = child.geometry.attributes.position.clone();
+        var ps = position.array;
+        var t = new THREE.Triangle(new THREE.Vector3(ps[0],
+                                                     ps[1],
+                                                     ps[2]),
+                                   new THREE.Vector3(ps[3],
+                                                     ps[4],
+                                                     ps[5]),
+                                   new THREE.Vector3(ps[6],
+                                                     ps[7],
+                                                     ps[8]));
+        var center = t.getMidpoint();
+
+        var dmin = Number.MAX_SAFE_INTEGER;
+        var candidate;
+        for (let i = 0, ie = referenceModel.children.length; i < ie; i++) {
+            let childOther = referenceModel.children[i];
+            var position2 = childOther.geometry.attributes.position.clone();
+            var ps2 = position2.array;
+            var t2 = new THREE.Triangle(new THREE.Vector3(ps2[0],
+                                                          ps2[1],
+                                                          ps2[2]),
+                                        new THREE.Vector3(ps2[3],
+                                                          ps2[4],
+                                                          ps2[5]),
+                                        new THREE.Vector3(ps2[6],
+                                                          ps2[7],
+                                                          ps2[8]));
+            var center2 = t2.getMidpoint();
+            var d = center.distanceTo(center2);
+            if (d < dmin) {
+                candidate = i;
+                dmin = d;
+            }
+        }
+
+        for ( var j = 0, jl = position.count; j < jl; j ++ ) {
+            let c = nextModel.children[candidate].geometry.attributes.position;
+            position.setXYZ(
+                j,
+                c.getX( j ) ,
+                c.getY( j ) ,
+                c.getZ( j )
+            );
+        }
+
+        morphAttributes.position.push( position );
+        child.updateMorphTargets();
+        child.morphTargetInfluences[0] = 0;
+        child.material.needsUpdate = true;
+    });
 }
 
 function loadModel(model, filename) {
@@ -158,7 +260,7 @@ function loadModel(model, filename) {
     return p1.then(geometry => {
         geometry.computeVertexNormals();
         geometry.center();
-		var material = new THREE.MeshStandardMaterial( { color: 0xbb7722, transparent: true, opacity: 0.8},  );
+		var material = new THREE.MeshStandardMaterial( { color: 0xbb7722, transparent: true, opacity: 0.3},  );
         model.geometry = geometry;
         model.material = material;
 		model.castShadow = true;
@@ -202,6 +304,13 @@ function animate(t) {
 }
 
 function render() {
+    if (meshes.length > 0) {
+        meshes[0].children.forEach(function (child) {
+            if (child.hasOwnProperty("morphTargetInfluences") && child.morphTargetInfluences[0] <= 1) {
+                child.morphTargetInfluences[0] += 0.001;
+            }
+        });
+    }
 	renderer.render( scene, camera );
 }
 
