@@ -14,13 +14,13 @@ import { RenderPass } from '../../assets/js/three/examples/jsm/postprocessing/Re
 import { ShaderPass } from '../../assets/js/three/examples/jsm/postprocessing/ShaderPass.js';
 import { OutlinePass } from '../../assets/js/three/examples/jsm/postprocessing/OutlinePass.js';
 import { FXAAShader } from '../../assets/js/three/examples/jsm/shaders/FXAAShader.js';
+var currentIndex = 0;
 
-const stages = ["simplified_060", "simplified_120"];
+const stages = ["060", "120", "180", "240", "270", "310"];
 
 var camera, controls, scene, renderer;
 var animation = false;
 var meshes = [];
-var composer;
 
 
 document.body.onkeyup  = function (event) {
@@ -31,16 +31,28 @@ document.body.onkeyup  = function (event) {
 };
 
 function growthAnimation() {
+    if (currentIndex < stages.length-1)  {
+        var v  = scaleModel(meshes[currentIndex], meshes[currentIndex+1]);
+        new TWEEN.Tween( meshes[currentIndex].scale).to({x:v.x, y:v.y, z:v.z}, 500).delay(0).onUpdate(() => {
+            translateModel(meshes[currentIndex]);
+        }).onComplete(() => {
+            scene.remove(meshes[currentIndex]);
+            scene.add(meshes[currentIndex+1]);
+            currentIndex += 1;
+            document.getElementById("stages").textContent = stages[currentIndex] + " degrés-jours";
 
+        }).start();
+    }
 }
 
 
 
 function init() {
+    document.getElementById("stages").textContent = stages[currentIndex] + " degrés-jours";
     // Init scene
 	scene = new THREE.Scene();
 	scene.background = new THREE.Color( 0xcccccc );
-	//scene.fog = new THREE.FogExp2( 0xcccccc, 0.001 );
+//	scene.fog = new THREE.FogExp2( 0xcccccc, 0.00002 );
 
     // Renderer = HTML canvas
 	renderer = new THREE.WebGLRenderer( { antialias: true } );
@@ -51,27 +63,10 @@ function init() {
 
     // Camera position
 	camera = new THREE.PerspectiveCamera( 35, window.innerWidth / window.innerHeight, 1, 1000000 );
-	camera.position.set( 500, 500, 10000 );
+	camera.position.set( 4818.695454365718, -21913.811891713613,  12831.135980051007198);
+    camera.rotation.set( 1.2059018157208456, 0.011554227087200301, 0.004413601415747621);
+    camera.rotation.z = Math.PI/2;
 
-    composer = new EffectComposer( renderer );
-	var renderPass = new RenderPass( scene, camera );
-	composer.addPass( renderPass );
-	var outlinePass = new OutlinePass( new THREE.Vector2( window.innerWidth, window.innerHeight ), scene, camera );
-    outlinePass.edgeStrength = 4;
-    outlinePass.edgeThickness = 7;
-    outlinePass.edgeGlow = 1;
-    outlinePass.pulsePeriod = 1;
-    outlinePass.visibleEdgeColor.set( "#0033cc" );
-	composer.addPass( outlinePass );
-	var onLoad = function ( texture ) {
-		outlinePass.patternTexture = texture;
-		texture.wrapS = THREE.RepeatWrapping;
-		texture.wrapT = THREE.RepeatWrapping;
-	};
-
-	var effectFXAA = new ShaderPass( FXAAShader );
-	effectFXAA.uniforms[ 'resolution' ].value.set( 1 / window.innerWidth, 1 / window.innerHeight );
-	composer.addPass( effectFXAA );
 
     renderer.gammaInput = true;
 	renderer.gammaOutput = true;
@@ -80,7 +75,7 @@ function init() {
 
     // Ground
 	var plane = new THREE.Mesh(
-		new THREE.PlaneBufferGeometry( 4000, 4000 ),
+		new THREE.PlaneBufferGeometry( 400000, 400000 ),
 		new THREE.MeshPhongMaterial( { color: 0x999999, specular: 0x101010 } )
 	);
     plane.position.set(0,0,0);
@@ -97,15 +92,8 @@ function init() {
     }
 
     Promise.all(promises).then(result => {
-        var scaledNext = result[1].clone();
-        scaledNext.updateMatrix();
-        scaleModel(scaledNext, result[0]);
-        translateModel(scaledNext);
-        extractChildren(scaledNext);
         for (let mesh of result) {
-            //mesh.rotation.z = 3*Math.PI/2-0.2;
             translateModel(mesh);
-            extractChildren(mesh);
             meshes.push(mesh);
 
             var box = new THREE.Box3();
@@ -115,12 +103,6 @@ function init() {
         }
 
         scene.add(meshes[0]);
-        scene.add(scaledNext);
-        for (let child of scaledNext.children) {
-            child.visible  = false;
-        }
-
-        addMorphTargets(meshes[0], scaledNext, meshes[1]);
 
         //Camera
         camera.up = new THREE.Vector3(0,0,1);
@@ -131,9 +113,9 @@ function init() {
 
         // Light
         var light = new THREE.HemisphereLight( 0x443333, 0x111122 );
-        // scene.add( light );
-	    addShadowedLight( max.x+30 , min.y-10, max.z-20, 0xffffff, 1.8 );
-	    addShadowedLight( min.x-30, max.y+40, max.z+50, 0x777777, 1 );
+        scene.add( light );
+	    addShadowedLight( max.x+300 , min.y-100, max.z-200, 0xffffff, 1.0 );
+	    addShadowedLight( min.x-300, max.y+400, max.z+500, 0x777777, 1 );
 
 
     });
@@ -152,18 +134,17 @@ function scaleModel(model, reference) {
     var referenceRadius = box.getSize();
     var modelRadius = model.geometry.boundingBox.getSize();
     var r = referenceRadius.z / modelRadius.z;
-    model.scale.set(r, r, r);
+    return new THREE.Vector3(referenceRadius.x / modelRadius.x,
+                             referenceRadius.y / modelRadius.y,
+                             referenceRadius.z / modelRadius.z);
 }
 
 function translateModel(model) {
     var box = new THREE.Box3();
     box.setFromObject( model );
-    console.log(box);
     var boundingSize = box.getSize();
     var z = boundingSize.z;
-    console.log(model.position.z);
     model.position.z = z/2;
-    console.log(model.position.z);
 }
 
 function extractChildren(model) {
@@ -260,7 +241,7 @@ function loadModel(model, filename) {
     return p1.then(geometry => {
         geometry.computeVertexNormals();
         geometry.center();
-		var material = new THREE.MeshStandardMaterial( { color: 0xbb7722, transparent: true, opacity: 0.3},  );
+		var material = new THREE.MeshStandardMaterial( { color: 0xbb7722, transparent: true, opacity: 0.8, side:THREE.DoubleSide},  );
         model.geometry = geometry;
         model.material = material;
 		model.castShadow = true;
@@ -274,13 +255,13 @@ function addShadowedLight( x, y, z, color, intensity ) {
 	directionalLight.position.set( x, y, z );
 	scene.add( directionalLight );
 	directionalLight.castShadow = true;
-	var d = 100;
+	var d = 10000;
 	directionalLight.shadow.camera.left = - d;
 	directionalLight.shadow.camera.right = d;
 	directionalLight.shadow.camera.top = d;
 	directionalLight.shadow.camera.bottom = - d;
 	directionalLight.shadow.camera.near = 0.01;
-	directionalLight.shadow.camera.far = 300;
+	directionalLight.shadow.camera.far = 30000;
 	directionalLight.shadow.mapSize.width = 1024;
 	directionalLight.shadow.mapSize.height = 1024;
 	directionalLight.shadow.bias = - 0.001;
@@ -296,21 +277,14 @@ function onWindowResize() {
 function animate(t) {
     window.requestAnimationFrame( animate );
     render();
-    composer.render();
     if (animation) {
-
+        growthAnimation();
+        animation=false;
     }
     TWEEN.update(t);
 }
 
 function render() {
-    if (meshes.length > 0) {
-        meshes[0].children.forEach(function (child) {
-            if (child.hasOwnProperty("morphTargetInfluences") && child.morphTargetInfluences[0] <= 1) {
-                child.morphTargetInfluences[0] += 0.001;
-            }
-        });
-    }
 	renderer.render( scene, camera );
 }
 
