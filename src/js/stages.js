@@ -52,7 +52,7 @@ function init() {
     // Init scene
 	scene = new THREE.Scene();
 	scene.background = new THREE.Color( 0xcccccc );
-//	scene.fog = new THREE.FogExp2( 0xcccccc, 0.00002 );
+	scene.fog = new THREE.FogExp2( 0xcccccc, 0.000006 );
 
     // Renderer = HTML canvas
 	renderer = new THREE.WebGLRenderer( { antialias: true } );
@@ -114,8 +114,8 @@ function init() {
         // Light
         var light = new THREE.HemisphereLight( 0x443333, 0x111122 );
         scene.add( light );
-	    addShadowedLight( max.x+300 , min.y-100, max.z-200, 0xffffff, 1.0 );
-	    addShadowedLight( min.x-300, max.y+400, max.z+500, 0x777777, 1 );
+	    addShadowedLight( max.x+300 , min.y-100, 2000, 0xffffff, 1.0 );
+	    addShadowedLight( min.x-300, max.y+400, 2000, 0x777777, 1 );
 
 
     });
