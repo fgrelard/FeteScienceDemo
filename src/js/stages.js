@@ -12,8 +12,11 @@ import {PLYLoader} from '../../assets/js/three/examples/jsm/loaders/PLYLoader.js
 import { EffectComposer } from '../../assets/js/three/examples/jsm/postprocessing/EffectComposer.js';
 import { RenderPass } from '../../assets/js/three/examples/jsm/postprocessing/RenderPass.js';
 import { ShaderPass } from '../../assets/js/three/examples/jsm/postprocessing/ShaderPass.js';
+
 import { OutlinePass } from '../../assets/js/three/examples/jsm/postprocessing/OutlinePass.js';
-import { FXAAShader } from '../../assets/js/three/examples/jsm/shaders/FXAAShader.js';
+import { HorizontalBlurShader } from '../../assets/js/three/examples/jsm/shaders/HorizontalBlurShader.js';
+import { VerticalBlurShader } from '../../assets/js/three/examples/jsm/shaders/VerticalBlurShader.js';
+
 var currentIndex = 0;
 
 const stages = ["060", "120", "180", "240", "270", "310"];
@@ -21,7 +24,7 @@ const stages = ["060", "120", "180", "240", "270", "310"];
 var camera, controls, scene, renderer;
 var animation = false;
 var meshes = [];
-
+var composer;
 
 document.body.onkeyup  = function (event) {
     //Press space bar
@@ -34,13 +37,23 @@ function growthAnimation() {
     if (currentIndex < stages.length-1)  {
         var v  = scaleModel(meshes[currentIndex], meshes[currentIndex+1]);
         new TWEEN.Tween( meshes[currentIndex].scale).to({x:v.x, y:v.y, z:v.z}, 500).delay(0).onUpdate(() => {
+            composer.render();
+
             translateModel(meshes[currentIndex]);
         }).onComplete(() => {
-            scene.remove(meshes[currentIndex]);
+            document.getElementById("stages").textContent = stages[currentIndex+1] + " degrés-jours";
+            meshes[currentIndex+1].renderOrder = 0;
+            meshes[currentIndex+1].material.depthTest = false;
             scene.add(meshes[currentIndex+1]);
+            var mesh1 = meshes[currentIndex];
+            var mesh2 = meshes[currentIndex+1];
+            new TWEEN.Tween(mesh1.material).to({opacity:0.0}, 1900).onUpdate(()=> {
+               composer.render();
+            }).onComplete(()=>{
+                scene.remove(mesh1);
+            }).start();
+            new TWEEN.Tween(mesh2.material).to({opacity:1.0}, 2000).start();
             currentIndex += 1;
-            document.getElementById("stages").textContent = stages[currentIndex] + " degrés-jours";
-
         }).start();
     }
 }
@@ -48,6 +61,8 @@ function growthAnimation() {
 
 
 function init() {
+
+
     document.getElementById("stages").textContent = stages[currentIndex] + " degrés-jours";
     // Init scene
 	scene = new THREE.Scene();
@@ -60,12 +75,28 @@ function init() {
 	renderer.setSize( window.innerWidth, window.innerHeight );
 	document.body.appendChild( renderer.domElement );
 
-
     // Camera position
 	camera = new THREE.PerspectiveCamera( 35, window.innerWidth / window.innerHeight, 1, 1000000 );
 	camera.position.set( 4818.695454365718, -21913.811891713613,  12831.135980051007198);
     camera.rotation.set( 1.2059018157208456, 0.011554227087200301, 0.004413601415747621);
     camera.rotation.z = Math.PI/2;
+
+     composer = new EffectComposer( renderer );
+    composer.addPass( new RenderPass( scene, camera ) );
+    // HorizontalBlurShader.uniforms.tDiffuse = 1;
+    // VerticalBlurShader.uniforms.tDiffuse = 1;
+    HorizontalBlurShader.uniforms.h.value = 0.0005;
+    console.log(HorizontalBlurShader);
+    VerticalBlurShader.uniforms.v.value = 0.0005;
+
+
+    var hblur = new ShaderPass( HorizontalBlurShader );
+    composer.addPass( hblur );
+
+    var vblur = new ShaderPass( VerticalBlurShader );
+    // set this shader pass to render to screen so we can see the effects
+    vblur.renderToScreen = true;
+    composer.addPass( vblur );
 
 
     renderer.gammaInput = true;
@@ -101,7 +132,7 @@ function init() {
             var min = box.min;
             var max = box.max;
         }
-
+        meshes[0].material.opacity = 1.0;
         scene.add(meshes[0]);
 
         //Camera
@@ -240,8 +271,9 @@ function loadModel(model, filename) {
     });
     return p1.then(geometry => {
         geometry.computeVertexNormals();
+        geometry.computeFaceNormals();
         geometry.center();
-		var material = new THREE.MeshStandardMaterial( { color: 0xbb7722, transparent: true, opacity: 0.8, side:THREE.DoubleSide},  );
+		var material = new THREE.MeshStandardMaterial( { color: 0xbb7722, transparent: true, opacity: 0, side:THREE.DoubleSide},  );
         model.geometry = geometry;
         model.material = material;
 		model.castShadow = true;
