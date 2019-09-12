@@ -10,6 +10,10 @@ import Stats from '../../assets/js/three/examples/jsm/libs/stats.module.js';
 import { GUI } from '../../assets/js/three/examples/jsm/libs/dat.gui.module.js';
 import {PLYLoader} from '../../assets/js/three/examples/jsm/loaders/PLYLoader.js';
 var camera, controls, scene, renderer;
+var parts = ["BundleLeft", "BundleRight", "Embryo", "InnerRegion", "OuterGrain"];
+var legend = ["Faisceau gauche", "Faisceau droit", "Embryon", "Région interne", "Région externe"];
+var colors = ["#99cc99", "#99cc99", "#dddddd", "#bb9977",  "#bb7722"];
+var meshes = [];
 
 init();
 animate();
@@ -18,7 +22,7 @@ function init() {
     // Init scene
 	scene = new THREE.Scene();
 	scene.background = new THREE.Color( 0xcccccc );
-	scene.fog = new THREE.FogExp2( 0xcccccc, 0.01 );
+	scene.fog = new THREE.FogExp2( 0xcccccc, 0.0001 );
 
     // Renderer = HTML canvas
 	renderer = new THREE.WebGLRenderer( { antialias: true } );
@@ -27,15 +31,12 @@ function init() {
 	document.body.appendChild( renderer.domElement );
 
     // Camera position, adding layers
-	camera = new THREE.PerspectiveCamera( 35, window.innerWidth / window.innerHeight, 1, 100 );
-	camera.position.set( 3, 0.15, 30 );
-    camera.layers.enable( 0 ); // enabled by default
-	camera.layers.enable( 1 );
-	camera.layers.enable( 2 );
+	camera = new THREE.PerspectiveCamera( 35, window.innerWidth / window.innerHeight, 1, 10000 );
+	camera.position.set( 0, 500, 2000 );
 
     // Ground
 	var plane = new THREE.Mesh(
-		new THREE.PlaneBufferGeometry( 4000, 4000 ),
+		new THREE.PlaneBufferGeometry( 40000, 40000 ),
 		new THREE.MeshPhongMaterial( { color: 0x999999, specular: 0x101010 } )
 	);
 	plane.rotation.x = - Math.PI / 2;
@@ -47,52 +48,54 @@ function init() {
 	// controls
 
 	controls = new OrbitControls( camera, renderer.domElement );
-	controls.enableDamping = true; // an animation loop is required when either damping or auto-rotation are enabled
-	controls.dampingFactor = 0.05;
 
-	controls.screenSpacePanning = false;
+    var promises = [];
+    for (let i = 0; i < parts.length; i++) {
+        let part = parts[i];
+        let mesh = new THREE.Mesh();
+        let promise = loadModel(mesh, "./assets/models/parts/180_1_11_1_subZ20_"+ part +".ply", i);
+        promises.push(promise);
+    }
+
+    Promise.all(promises).then(result => {
+        for (let mesh of result) {
+            mesh.rotation.x = -Math.PI/2;
+            meshes.push(mesh);
+            scene.add(mesh);
+        }
+        var lastPart = meshes[meshes.length-1];
+        var box = new THREE.Box3();
+        box.setFromObject(lastPart);
+        var boxSize = box.getSize();
+        camera.position.y = boxSize.y;
+        camera.position.z = 4000;
+        for (let mesh of meshes) {
+            mesh.position.y = boxSize.y / 2;
+        }
+    });
 
 
-    var loader = new PLYLoader();
-
-    loader.load( './assets/models/180_1_11_1_PR_test_test042019.ply', function ( geometry ) {
-        geometry.computeVertexNormals();
-        geometry.center();
-		var material = new THREE.MeshStandardMaterial( { color: 0xbb7722, transparent: true, opacity: 0.8},  );
-		var mesh = new THREE.Mesh( geometry, material );
-        var box = new THREE.Box3().setFromObject( mesh );
-        mesh.rotation.x = -Math.PI/2;
-        mesh.rotation.z = Math.PI;
-        box.center( mesh.position ); // this re-sets the mesh position
-        mesh.position.multiplyScalar( - 1 );
-
-
-		mesh.castShadow = true;
-		mesh.receiveShadow = true;
-        mesh.layers.set(1);
-		scene.add( mesh );
-	});
-
-    //Embryo
-    var geometry = new THREE.SphereGeometry(0.7, 64, 64.);
-	var material = new THREE.MeshPhongMaterial( { color: 0xffffff } );
-    var sphere = new THREE.Mesh( geometry, material );
-    sphere.position.set(0,2,0);
-    sphere.layers.set(2);
-    sphere.castShadow = true;
-    scene.add(sphere);
 
 
     // Light
     var light = new THREE.HemisphereLight( 0x443333, 0x111122 );
-    light.layers.enable(0);
-    light.layers.enable(1);
-    light.layers.enable(2);
+
+    //Enable layers
+    for (var i = 0; i < legend.length+1; i++) {
+        camera.layers.enable( i );
+        light.layers.enable(i);
+        plane.layers.set(i);
+    }
+
     scene.add( light );
 	addShadowedLight( 1, 1, 1, 0xffffff, 1.35 );
 	addShadowedLight( 0.5, 1, - 1, 0x777777, 1 );
 
-    var layers = { pericarp: true, embryo: true };
+    var layers = {};
+    for (let leg of legend) {
+        layers[leg] = true;
+    }
+
     renderer.gammaInput = true;
 	renderer.gammaOutput = true;
 
@@ -100,25 +103,48 @@ function init() {
 
 	// Init gui : menu to select and deselect layers
 	var gui = new GUI();
-	gui.add( layers, 'pericarp' ).onChange( function () {
-
-		camera.layers.toggle( 1 );
-
-	} );
-	gui.add( layers, 'embryo' ).onChange( function () {
-
-		camera.layers.toggle( 2 );
-
-	} );
+    for (let i = 0; i < legend.length; i++) {
+        gui.add(layers, legend[i]).onChange( function(event) {
+            camera.layers.toggle(i);
+        });
+    }
 
 	window.addEventListener( 'resize', onWindowResize, false );
 }
 
+function translateModel(model) {
+    var box = new THREE.Box3();
+    box.setFromObject( model );
+    var boundingSize = box.getSize();
+    var z = boundingSize.z;
+    model.position.z = z/2;
+}
+
+function loadModel(model, filename, i) {
+    var loader = new PLYLoader();
+    var p1 =  new Promise(resolve => {
+        loader.load( filename, resolve);
+    });
+    return p1.then(geometry => {
+        geometry.computeVertexNormals();
+        geometry.center();
+		var material = new THREE.MeshStandardMaterial( { color: colors[i], transparent: true, opacity: 0.6, side: THREE.DoubleSide},  );
+        model.geometry = geometry;
+        model.material = material;
+		model.castShadow = true;
+		model.receiveShadow = true;
+        model.layers.set(i);
+
+        return model;
+    });
+}
+
+
 function addShadowedLight( x, y, z, color, intensity ) {
 	var directionalLight = new THREE.DirectionalLight( color, intensity );
-    directionalLight.layers.enable(0);
-    directionalLight.layers.enable(1);
-    directionalLight.layers.enable(2);
+    for (var i  = 0; i < legend.length+1; i++) {
+        directionalLight.layers.enable(i);
+    }
 	directionalLight.position.set( x, y, z );
 	scene.add( directionalLight );
 	directionalLight.castShadow = true;
