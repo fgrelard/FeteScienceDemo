@@ -45,6 +45,7 @@ function imageGroup() {
         var img = new THREE.MeshBasicMaterial({ //CHANGED to MeshBasicMaterial
             map: (new THREE.TextureLoader()).load(path),
             transparent: true,
+            side: THREE.DoubleSide
         });
 
         img.map.magFilter = THREE.NearestFilter;
@@ -62,6 +63,8 @@ function imageGroup() {
 }
 
 function imageAnimation() {
+    document.getElementById("step").textContent = "Segmentation du grain";
+
     sweepingPlane.position.set(0,0,49);
 
     sweepingPlane.visible = true;
@@ -104,6 +107,7 @@ function imageAnimation() {
 }
 
 function meshAnimation() {
+    document.getElementById("step").textContent = "Extraction du maillage";
     sweepingPlane2.position.set(0, -30, 0);
     translateModel(sweepingPlane2);
     sweepingPlane2.visible = true;
@@ -190,6 +194,7 @@ function createArrow(dir, origin, length, color, width) {
 }
 
 function measurementAnimation() {
+    document.getElementById("step").textContent = "Mesures : dimensions du grain";
     curvature.material.opacity = 0;
 
     mesh.material.depthWrite = false;
@@ -210,6 +215,7 @@ function measurementAnimation() {
              new TWEEN.Tween(arrowY.material).to({opacity:1.0}, 1000).delay(500).onComplete(() => {
                  new TWEEN.Tween(arrowZ.material).to({opacity:1.0}, 1000).delay(500).onComplete(() => {
                      new TWEEN.Tween(mesh.material).delay(3000).to({opacity:0.0}, 2000).onUpdate(()=> {
+                         document.getElementById("step").textContent = "Mesures : courbure";
                          curvature.visible = true;
                          arrowX.visible = false;
                          arrowY.visible = false;
@@ -218,6 +224,7 @@ function measurementAnimation() {
                          mesh.visible = false;
                      }).start();
                      new TWEEN.Tween(curvature.material).delay(3000).to({opacity:1.0}, 1500).onComplete(()=>{
+
                          curvature.material.depthWrite = true;
                      }).start();
                  }).start();
@@ -228,10 +235,12 @@ function measurementAnimation() {
 }
 
 function init() {
+    document.getElementById("step").textContent = "Image 3D (scanner - tomographie)";
+
     // Init scene
 	scene = new THREE.Scene();
 	scene.background = new THREE.Color( 0xcccccc );
-	scene.fog = new THREE.FogExp2( 0xcccccc, 0.0005 );
+	scene.fog = new THREE.FogExp2( 0xcccccc, 0.001 );
 
     // Renderer = HTML canvas
 	renderer = new THREE.WebGLRenderer( { antialias: true } );
@@ -346,8 +355,8 @@ function init() {
         // Light
         var light = new THREE.HemisphereLight( 0x443333, 0x111122 );
         // scene.add( light );
-	    addShadowedLight( max.x+30 , min.y-10, max.z-20, 0xffffff, 1.8 );
-	    addShadowedLight( min.x-30, max.y+40, max.z+50, 0x777777, 1 );
+	    addShadowedLight( max.x+10 , min.y-10, max.z-20, 0xffffff, 1.8 );
+	    addShadowedLight( min.x-10, max.y+10, max.z+50, 0x777777, 1 );
 
     });
 
@@ -460,6 +469,7 @@ function animate(t) {
             for (let child of groupImages.children) {
                 child.visible = true;
             }
+            document.getElementById("step").textContent = "Image 3D (scanner - tomographie)";
         }
         animation = false;
     }

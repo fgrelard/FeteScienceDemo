@@ -36,19 +36,22 @@ document.body.onkeyup  = function (event) {
 function growthAnimation() {
     if (currentIndex < stages.length-1)  {
         var v  = scaleModel(meshes[currentIndex], meshes[currentIndex+1]);
+        var initialScale = meshes[currentIndex].scale.clone();
         new TWEEN.Tween( meshes[currentIndex].scale).to({x:v.x, y:v.y, z:v.z}, 500).delay(0).onUpdate(() => {
             composer.render();
             translateModel(meshes[currentIndex]);
         }).onComplete(() => {
-            document.getElementById("stages").textContent = stages[currentIndex+1] + " degrés-jours";
+            document.getElementById("stages").textContent = "Stade : " + stages[currentIndex+1] + " degrés-jours";
             meshes[currentIndex].material.depthWrite = false;
             meshes[currentIndex].material.additiveBlending = THREE.AdditiveBlending;
             scene.add(meshes[currentIndex+1]);
             var mesh1 = meshes[currentIndex];
             var mesh2 = meshes[currentIndex+1];
-            new TWEEN.Tween(mesh1.material).to({opacity:0.0}, 2000).onUpdate(()=> {
+            new TWEEN.Tween(mesh1.material).to({opacity:0.0}, 1600).onUpdate(()=> {
                 composer.render();
             }).onComplete(()=>{
+                mesh1.scale.copy(initialScale);
+                translateModel(mesh1);
                 scene.remove(mesh1);
             }).start();
             new TWEEN.Tween(mesh2.material).to({opacity:1.0}, 1500).onUpdate(()=> {
@@ -58,7 +61,7 @@ function growthAnimation() {
     } else {
         scene.remove(meshes[currentIndex]);
         currentIndex = 0;
-        document.getElementById("stages").textContent = stages[currentIndex] + " degrés-jours";
+        document.getElementById("stages").textContent = "Stade : " + stages[currentIndex] + " degrés-jours";
         meshes[currentIndex].material.opacity = 1;
         scene.add(meshes[currentIndex]);
     }
@@ -67,9 +70,7 @@ function growthAnimation() {
 
 
 function init() {
-
-
-    document.getElementById("stages").textContent = stages[currentIndex] + " degrés-jours";
+    document.getElementById("stages").textContent = "Stade : " + stages[currentIndex] + " degrés-jours";
     // Init scene
 	scene = new THREE.Scene();
 	scene.background = new THREE.Color( 0xcccccc );
