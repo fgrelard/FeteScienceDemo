@@ -62,8 +62,10 @@ function imageGroup() {
 }
 
 function imageAnimation() {
-    scene.add(sweepingPlane);
-    scene.add( voxelizedMesh );
+    sweepingPlane.position.set(0,0,49);
+
+    sweepingPlane.visible = true;
+    voxelizedMesh.visible = true;
 
     voxelizedMesh.geometry.faces.length = 1;
     voxelizedMesh.updateMatrix();
@@ -98,13 +100,15 @@ function imageAnimation() {
         }
     }).onComplete(() => {
         sweepingPlane.visible = false;
-        scene.remove(imageGroup);
     }).start();
 }
 
 function meshAnimation() {
-    scene.add(sweepingPlane2);
-    scene.add(mesh);
+    sweepingPlane2.position.set(0, -30, 0);
+    translateModel(sweepingPlane2);
+    sweepingPlane2.visible = true;
+
+    mesh.visible = true;
 
     mesh.opacity = 0;
     mesh.geometry.faces.length = 1;
@@ -123,8 +127,7 @@ function meshAnimation() {
     new TWEEN.Tween( sweepingPlane2.position ).to( {y : 40} , 10000).delay(1500).onUpdate(() => {
 
         if (Math.abs(Math.floor(sweepingPlane2.position.y) - Math.floor(previousPlanePosition)) >= 2 && sweepingPlane2.position.y < box.max.y+5)  {
-            console.log(sweepingPlane2.position.y, " ", previousPlanePosition);
-            console.log(voxelizedMesh.geometry.faces.length);
+
             //Remove voxelized mesh
             voxelizedMesh.geometry.faces.length = 1;
             for (let i = 0; i < voxelizedFaces.length; i++) {
@@ -150,12 +153,10 @@ function meshAnimation() {
             voxelizedMesh.geometry.elementsNeedUpdate = true;
             mesh.geometry.elementsNeedUpdate = true;
             previousPlanePosition = sweepingPlane2.position.y;
-            console.log(previousPlanePosition);
         }
     }).onComplete(() => {
         sweepingPlane2.visible = false;
         voxelizedMesh.visible = false;
-        scene.remove(voxelizedMesh);
     }).start();
 }
 
@@ -178,7 +179,6 @@ function createArrow(dir, origin, length, color, width) {
     arrowHelper.cone.updateMatrix();
     head1.applyMatrix(arrowHelper.cone.matrix.clone());
     head1.applyMatrix(arrowHelper.matrix.clone());
-    //    head1.applyMatrix(arrowHelper.cone.matrix);
 
     arrowHelper2.cone.updateMatrix();
     head2.applyMatrix(arrowHelper2.cone.matrix.clone());
@@ -190,7 +190,8 @@ function createArrow(dir, origin, length, color, width) {
 }
 
 function measurementAnimation() {
-    scene.add(curvature);
+    curvature.material.opacity = 0;
+
     mesh.material.depthWrite = false;
     curvature.material.depthWrite = false;
      new TWEEN.Tween(mesh.material).to({opacity:0.3}, 2000).onUpdate(()=> {
@@ -203,19 +204,19 @@ function measurementAnimation() {
          var arrowX = createArrow(new THREE.Vector3(1, 0, 0), origin, size.x, 0x2222cc, width);
          var arrowY = createArrow(new THREE.Vector3(0, 1, 0), origin, size.y, 0x22cc22, width);
          var arrowZ = createArrow(new THREE.Vector3(0, 0, 1), origin, size.z, 0xcc2222, width);
-
          scene.add(arrowX, arrowY, arrowZ);
-         console.log(arrowX);
+
          new TWEEN.Tween(arrowX.material).to({opacity:1.0}, 1000).delay(2000).onComplete(() => {
              new TWEEN.Tween(arrowY.material).to({opacity:1.0}, 1000).delay(500).onComplete(() => {
                  new TWEEN.Tween(arrowZ.material).to({opacity:1.0}, 1000).delay(500).onComplete(() => {
                      new TWEEN.Tween(mesh.material).delay(3000).to({opacity:0.0}, 2000).onUpdate(()=> {
+                         curvature.visible = true;
                          arrowX.visible = false;
                          arrowY.visible = false;
                          arrowZ.visible = false;
-                         }).onComplete(()=>{
-                             scene.remove(mesh);
-                         }).start();
+                     }).onComplete(()=>{
+                         mesh.visible = false;
+                     }).start();
                      new TWEEN.Tween(curvature.material).delay(3000).to({opacity:1.0}, 1500).onComplete(()=>{
                          curvature.material.depthWrite = true;
                      }).start();
@@ -223,9 +224,6 @@ function measurementAnimation() {
              }).start();
          }).start();
     }).start();
-    mesh.material.opacity = 0.2;
-    scene.add(mesh);
-
 
 }
 
@@ -233,7 +231,7 @@ function init() {
     // Init scene
 	scene = new THREE.Scene();
 	scene.background = new THREE.Color( 0xcccccc );
-//	scene.fog = new THREE.FogExp2( 0xcccccc, 0.001 );
+	scene.fog = new THREE.FogExp2( 0xcccccc, 0.0005 );
 
     // Renderer = HTML canvas
 	renderer = new THREE.WebGLRenderer( { antialias: true } );
@@ -286,39 +284,37 @@ function init() {
 		new THREE.PlaneBufferGeometry( 40,40 ),
 		new THREE.MeshBasicMaterial( { color: 0x535353,  transparent:true, opacity:0.5 } )
 	);
-    sweepingPlane.position.set(0,0,49);
+    sweepingPlane.visible = false;
 
     sweepingPlane2 = sweepingPlane.clone();
-
     sweepingPlane2.scale.y = 1.3;
     sweepingPlane2.scale.x = 0.9;
     sweepingPlane2.rotation.x = Math.PI/2;
-    sweepingPlane2.position.set(0, -30, 0);
-    translateModel(sweepingPlane2);
+
 
     outlinePass.selectedObjects = [sweepingPlane, sweepingPlane2];
+    scene.add(sweepingPlane, sweepingPlane2);
 
-   //Images
+    //Images
     imageGroup();
-    //scene.add(groupImages);
+    scene.add(groupImages);
 
     //Grain models
     var promiseVoxel = loadModel(voxelizedMesh, "./assets/models/180_voxelized.ply");
     var promiseMesh = loadModel(mesh, "./assets/models/180_1_11_1_PR_test_test042019.ply");
     var promiseCurvature = loadModel(curvature, "./assets/models/180_curvature.ply");
 
-    Promise.all([promiseVoxel, promiseMesh, promiseCurvature
-                ]).then(result => {
+    Promise.all([promiseVoxel, promiseMesh, promiseCurvature]).then(result => {
 
-        // extractFaces(voxelizedMesh);
-        // extractFaces(mesh);
+        extractFaces(voxelizedMesh);
+        extractFaces(mesh);
 
-        // voxelizedFaces = voxelizedMesh.geometry.faces.slice();
-        // voxelizedFaces.sort((a,b) => {
-        //     return  voxelizedMesh.geometry.vertices[b.c].z - voxelizedMesh.geometry.vertices[a.c].z;
-        // });
+        voxelizedFaces = voxelizedMesh.geometry.faces.slice();
+        voxelizedFaces.sort((a,b) => {
+            return  voxelizedMesh.geometry.vertices[b.c].z - voxelizedMesh.geometry.vertices[a.c].z;
+        });
 
-        // faces = mesh.geometry.faces.slice();
+        faces = mesh.geometry.faces.slice();
 
         scaleModel(mesh, groupImages);
         scaleModel(voxelizedMesh, groupImages);
@@ -331,6 +327,8 @@ function init() {
         translateModel(mesh);
         translateModel(voxelizedMesh);
         translateModel(curvature);
+
+        scene.add(mesh, voxelizedMesh, curvature);
 
         var box = new THREE.Box3();
         box.setFromObject(groupImages);
@@ -351,9 +349,7 @@ function init() {
 	    addShadowedLight( max.x+30 , min.y-10, max.z-20, 0xffffff, 1.8 );
 	    addShadowedLight( min.x-30, max.y+40, max.z+50, 0x777777, 1 );
 
-
     });
-
 
 
 	window.addEventListener( 'resize', onWindowResize, false );
@@ -415,6 +411,7 @@ function loadModel(model, filename) {
         }
         model.geometry = geometry;
         model.material = material;
+        model.visible = false;
 		model.castShadow = true;
 		model.receiveShadow = true;
     });
@@ -449,15 +446,21 @@ function animate(t) {
     render();
     composer.render();
     if (animation) {
-        // if (groupImages.children[0].visible) {
-        //     imageAnimation();
-        // }
-        // else if (voxelizedMesh.visible) {
-        //     meshAnimation();
-        // }
-        // else {
+        if (groupImages.children[0].visible) {
+            imageAnimation();
+        }
+        else if (voxelizedMesh.visible) {
+            meshAnimation();
+        }
+        else if (mesh.visible) {
             measurementAnimation();
-        // }
+        }
+        else {
+            curvature.visible = false;
+            for (let child of groupImages.children) {
+                child.visible = true;
+            }
+        }
         animation = false;
     }
     TWEEN.update(t);
