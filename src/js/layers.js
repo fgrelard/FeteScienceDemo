@@ -12,11 +12,18 @@ import {PLYLoader} from '../../assets/js/three/examples/jsm/loaders/PLYLoader.js
 var camera, controls, scene, renderer;
 var parts = ["BundleLeft", "BundleRight", "Embryo", "InnerRegion", "OuterGrain"];
 var legend = ["Faisceau gauche", "Faisceau droit", "Embryon", "Région interne", "Région externe"];
-var colors = ["#99cc99", "#99cc99", "#dddddd", "#bb9977",  "#bb7722"];
+var colors = ["#99cc99", "#99cc99", "#cccc22", "#bb9977",  "#bb7722"];
 var meshes = [];
 
-init();
-animate();
+function translateEmbryo(embryo, innerRegion) {
+    var box = new THREE.Box3();
+    box.setFromObject(innerRegion);
+    embryo.position.y = box.min.y-25;
+    embryo.position.z = 60;
+    embryo.position.x = 20;
+    embryo.material.opacity = 0.8;
+}
+
 
 function init() {
     // Init scene
@@ -46,7 +53,6 @@ function init() {
 	plane.receiveShadow = true;
 
 	// controls
-
 	controls = new OrbitControls( camera, renderer.domElement );
 
     var promises = [];
@@ -72,6 +78,7 @@ function init() {
         for (let mesh of meshes) {
             mesh.position.y = boxSize.y / 2;
         }
+        translateEmbryo(meshes[2], meshes[3]);
     });
 
 
@@ -88,8 +95,8 @@ function init() {
     }
 
     scene.add( light );
-	addShadowedLight( 1, 1, 1, 0xffffff, 1.35 );
-	addShadowedLight( 0.5, 1, - 1, 0x777777, 1 );
+	addShadowedLight( 1000, 1000, 1000, 0xffffff, 1.35 );
+	addShadowedLight( 1000, 1000, - 1000, 0x777777, 1 );
 
     var layers = {};
     for (let leg of legend) {
@@ -112,14 +119,6 @@ function init() {
 	window.addEventListener( 'resize', onWindowResize, false );
 }
 
-function translateModel(model) {
-    var box = new THREE.Box3();
-    box.setFromObject( model );
-    var boundingSize = box.getSize();
-    var z = boundingSize.z;
-    model.position.z = z/2;
-}
-
 function loadModel(model, filename, i) {
     var loader = new PLYLoader();
     var p1 =  new Promise(resolve => {
@@ -128,7 +127,7 @@ function loadModel(model, filename, i) {
     return p1.then(geometry => {
         geometry.computeVertexNormals();
         geometry.center();
-		var material = new THREE.MeshStandardMaterial( { color: colors[i], transparent: true, opacity: 0.6, side: THREE.DoubleSide},  );
+		var material = new THREE.MeshStandardMaterial( { color: colors[i], transparent: true, opacity: 0.5, side: THREE.BackSide},  );
         model.geometry = geometry;
         model.material = material;
 		model.castShadow = true;
@@ -148,13 +147,13 @@ function addShadowedLight( x, y, z, color, intensity ) {
 	directionalLight.position.set( x, y, z );
 	scene.add( directionalLight );
 	directionalLight.castShadow = true;
-	var d = 10;
+	var d = 1000;
 	directionalLight.shadow.camera.left = - d;
 	directionalLight.shadow.camera.right = d;
 	directionalLight.shadow.camera.top = d;
 	directionalLight.shadow.camera.bottom = - d;
 	directionalLight.shadow.camera.near = 0.01;
-	directionalLight.shadow.camera.far = 30;
+	directionalLight.shadow.camera.far = 3000;
 	directionalLight.shadow.mapSize.width = 1024;
 	directionalLight.shadow.mapSize.height = 1024;
 	directionalLight.shadow.bias = - 0.001;
@@ -177,3 +176,6 @@ function animate() {
 function render() {
 	renderer.render( scene, camera );
 }
+
+init();
+animate();
