@@ -14,17 +14,22 @@ import { RenderPass } from '../../assets/js/three/examples/jsm/postprocessing/Re
 import { ShaderPass } from '../../assets/js/three/examples/jsm/postprocessing/ShaderPass.js';
 import { OutlinePass } from '../../assets/js/three/examples/jsm/postprocessing/OutlinePass.js';
 import { FXAAShader } from '../../assets/js/three/examples/jsm/shaders/FXAAShader.js';
+import { Line2 } from '../../assets/js/three/examples/jsm/lines/Line2.js';
+import { LineMaterial } from '../../assets/js/three/examples/jsm/lines/LineMaterial.js';
+import { LineGeometry } from '../../assets/js/three/examples/jsm/lines/LineGeometry.js';
 
 var camera, controls, scene, renderer;
 var animation = false;
 
-var groupImages, voxelizedMesh=new THREE.Mesh(), mesh=new THREE.Mesh();
+var groupImages, voxelizedMesh=new THREE.Mesh(), mesh=new THREE.Mesh(), curvature = new THREE.Mesh();
+var previousPlanePosition = 0;
 var sweepingPlane, sweepingPlane2;
 var voxelizedFaces = [], faces = [];
 var composer;
+var outlinePass;
 
 
-document.body.onkeyup  = function (event) {
+document.body.onkeyup = function (event) {
     //Press space bar
     if (event.keyCode == 32) {
         animation = true;
@@ -36,7 +41,7 @@ function imageGroup() {
     var nbImages = 24;
     groupImages = new THREE.Group();
     for (let i = 1; i < nbImages-1; i++) {
-        let path = "./assets/images/L_200_1_v2_reduced_" + (nbImages-i) + ".png";
+        let path = "./assets/images/L_200_1_v2_reduced_" + i + ".png";
         var img = new THREE.MeshBasicMaterial({ //CHANGED to MeshBasicMaterial
             map: (new THREE.TextureLoader()).load(path),
             transparent: true,
@@ -65,25 +70,32 @@ function imageAnimation() {
     var scaling = new THREE.Vector3(), rot = new THREE.Quaternion(), pos = new THREE.Vector3();
     voxelizedMesh.matrix.decompose(pos, rot, scaling);
     var vertices = voxelizedMesh.geometry.vertices.slice();
-    new TWEEN.Tween( sweepingPlane.position ).to( {z : -0.1} , 10000).delay(1500).onUpdate(() => {
-        //Remove image stack
-        for (var child of groupImages.children) {
-            if (child.position.z > sweepingPlane.position.z) {
-                child.visible = false;
-            }
-        }
 
-        //Reveal mesh
-        var tz = voxelizedMesh.position.z;
-        for (var i = voxelizedMesh.geometry.faces.length; i < voxelizedFaces.length; i++) {
-            var face = voxelizedFaces[i];
-            var v = vertices[face.c];
-            if (v.z * scaling.z + pos.z > sweepingPlane.position.z) {
-                voxelizedMesh.geometry.faces.push(face);
+    previousPlanePosition = sweepingPlane.position.z;
+
+    new TWEEN.Tween( sweepingPlane.position ).to( {z : -0.1} , 10000).delay(1500).onUpdate(() => {
+
+        if (Math.abs(Math.floor(sweepingPlane.position.z) - Math.floor(previousPlanePosition)) >= 2)  {
+            //Remove image stack
+            for (var child of groupImages.children) {
+                if (child.position.z > sweepingPlane.position.z) {
+                    child.visible = false;
+                }
             }
+
+            //Reveal mesh
+            var tz = voxelizedMesh.position.z;
+            for (var i = voxelizedMesh.geometry.faces.length; i < voxelizedFaces.length; i++) {
+                var face = voxelizedFaces[i];
+                var v = vertices[face.c];
+                if (v.z * scaling.z + pos.z > sweepingPlane.position.z) {
+                    voxelizedMesh.geometry.faces.push(face);
+                }
+            }
+            voxelizedMesh.material.opacity = 0.8;
+            voxelizedMesh.geometry.elementsNeedUpdate = true;
+            previousPlanePosition = sweepingPlane.position.z;
         }
-        voxelizedMesh.material.opacity = 0.8;
-        voxelizedMesh.geometry.elementsNeedUpdate = true;
     }).onComplete(() => {
         sweepingPlane.visible = false;
         scene.remove(imageGroup);
@@ -104,42 +116,124 @@ function meshAnimation() {
     var verticesV = voxelizedMesh.geometry.vertices.slice();
     var vertices = mesh.geometry.vertices.slice();
 
-    new TWEEN.Tween( sweepingPlane2.position ).to( {y : 40} , 10000).delay(1500).onUpdate(() => {
-        //Remove voxelized mesh
-        voxelizedMesh.geometry.faces.length = 1;
-        for (let i = 0; i < voxelizedFaces.length; i++) {
-            let face = voxelizedFaces[i];
-            let v = verticesV[face.c].clone();
-            v.applyMatrix4(voxelizedMesh.matrix);
-            if (v.y > sweepingPlane2.position.y) {
-                voxelizedMesh.geometry.faces.push(face);
-            }
-        }
+    previousPlanePosition = sweepingPlane2.position.y;
+    var box = new THREE.Box3();
+    box.setFromObject(mesh);
 
-        //Reveal mesh
-        for (let i = 0; i < faces.length; i++) {
-            let face = faces[i];
-            let v = vertices[face.c].clone();
-            v.applyMatrix4(mesh.matrix);
-            if (v.y < sweepingPlane2.position.y) {
-                mesh.geometry.faces.push(face);
+    new TWEEN.Tween( sweepingPlane2.position ).to( {y : 40} , 10000).delay(1500).onUpdate(() => {
+
+        if (Math.abs(Math.floor(sweepingPlane2.position.y) - Math.floor(previousPlanePosition)) >= 2 && sweepingPlane2.position.y < box.max.y+5)  {
+            console.log(sweepingPlane2.position.y, " ", previousPlanePosition);
+            console.log(voxelizedMesh.geometry.faces.length);
+            //Remove voxelized mesh
+            voxelizedMesh.geometry.faces.length = 1;
+            for (let i = 0; i < voxelizedFaces.length; i++) {
+                let face = voxelizedFaces[i];
+                let v = verticesV[face.c].clone();
+                v.applyMatrix4(voxelizedMesh.matrix);
+                if (v.y > sweepingPlane2.position.y) {
+                    voxelizedMesh.geometry.faces.push(face);
+                }
             }
+
+            //Reveal mesh
+            for (let i = 0; i < faces.length; i++) {
+                let face = faces[i];
+                let v = vertices[face.c].clone();
+                v.applyMatrix4(mesh.matrix);
+                if (v.y < sweepingPlane2.position.y) {
+                    mesh.geometry.faces.push(face);
+                }
+            }
+            voxelizedMesh.material.opacity = 0.8;
+            mesh.material.opacity = 0.8;
+            voxelizedMesh.geometry.elementsNeedUpdate = true;
+            mesh.geometry.elementsNeedUpdate = true;
+            previousPlanePosition = sweepingPlane2.position.y;
+            console.log(previousPlanePosition);
         }
-        voxelizedMesh.material.opacity = 0.8;
-        mesh.material.opacity = 0.8;
-        voxelizedMesh.geometry.elementsNeedUpdate = true;
-        mesh.geometry.elementsNeedUpdate = true;
     }).onComplete(() => {
         sweepingPlane2.visible = false;
+        voxelizedMesh.visible = false;
         scene.remove(voxelizedMesh);
     }).start();
+}
+
+function createArrow(dir, origin, length, color, width) {
+
+    var arrowHelper = new THREE.ArrowHelper( dir.clone().normalize(), origin, length/2, color, 0.1*length/2 );
+    var arrowHelper2 = new THREE.ArrowHelper( dir.clone().negate().normalize(), origin, length/2, color, 0.1*length/2);
+
+    arrowHelper.updateMatrix();
+    arrowHelper2.updateMatrix();
+
+    //Larger arrow
+    var material =  new THREE.MeshBasicMaterial({color:color, transparent: true, opacity:0, depthWrite:false});
+	var line = new THREE.Mesh(new THREE.CylinderGeometry(width,width, length-0.1*length, 32), material);
+    line.applyMatrix(arrowHelper.matrix.clone());
+
+    var head1 = new THREE.Mesh(new THREE.ConeGeometry( width*10, width*10, 32 ), material);
+    var head2 = head1.clone();
+
+    arrowHelper.cone.updateMatrix();
+    head1.applyMatrix(arrowHelper.cone.matrix.clone());
+    head1.applyMatrix(arrowHelper.matrix.clone());
+    //    head1.applyMatrix(arrowHelper.cone.matrix);
+
+    arrowHelper2.cone.updateMatrix();
+    head2.applyMatrix(arrowHelper2.cone.matrix.clone());
+    head2.applyMatrix(arrowHelper2.matrix.clone());
+    var group = new THREE.Group();
+    group.add(line, head1, head2);
+    group.material = material;
+    return group;
+}
+
+function measurementAnimation() {
+    scene.add(curvature);
+    mesh.material.depthWrite = false;
+    curvature.material.depthWrite = false;
+     new TWEEN.Tween(mesh.material).to({opacity:0.3}, 2000).onUpdate(()=> {
+     }).onComplete(()=>{
+         var box = new THREE.Box3();
+         box.setFromObject(mesh);
+         var origin = box.getCenter().clone();
+         var size = box.getSize();
+         var width = 0.2;
+         var arrowX = createArrow(new THREE.Vector3(1, 0, 0), origin, size.x, 0x2222cc, width);
+         var arrowY = createArrow(new THREE.Vector3(0, 1, 0), origin, size.y, 0x22cc22, width);
+         var arrowZ = createArrow(new THREE.Vector3(0, 0, 1), origin, size.z, 0xcc2222, width);
+
+         scene.add(arrowX, arrowY, arrowZ);
+         console.log(arrowX);
+         new TWEEN.Tween(arrowX.material).to({opacity:1.0}, 1000).delay(2000).onComplete(() => {
+             new TWEEN.Tween(arrowY.material).to({opacity:1.0}, 1000).delay(500).onComplete(() => {
+                 new TWEEN.Tween(arrowZ.material).to({opacity:1.0}, 1000).delay(500).onComplete(() => {
+                     new TWEEN.Tween(mesh.material).delay(3000).to({opacity:0.0}, 2000).onUpdate(()=> {
+                         arrowX.visible = false;
+                         arrowY.visible = false;
+                         arrowZ.visible = false;
+                         }).onComplete(()=>{
+                             scene.remove(mesh);
+                         }).start();
+                     new TWEEN.Tween(curvature.material).delay(3000).to({opacity:1.0}, 1500).onComplete(()=>{
+                         curvature.material.depthWrite = true;
+                     }).start();
+                 }).start();
+             }).start();
+         }).start();
+    }).start();
+    mesh.material.opacity = 0.2;
+    scene.add(mesh);
+
+
 }
 
 function init() {
     // Init scene
 	scene = new THREE.Scene();
 	scene.background = new THREE.Color( 0xcccccc );
-	scene.fog = new THREE.FogExp2( 0xcccccc, 0.001 );
+//	scene.fog = new THREE.FogExp2( 0xcccccc, 0.001 );
 
     // Renderer = HTML canvas
 	renderer = new THREE.WebGLRenderer( { antialias: true } );
@@ -155,7 +249,8 @@ function init() {
     composer = new EffectComposer( renderer );
 	var renderPass = new RenderPass( scene, camera );
 	composer.addPass( renderPass );
-	var outlinePass = new OutlinePass( new THREE.Vector2( window.innerWidth, window.innerHeight ), scene, camera );
+
+	outlinePass = new OutlinePass( new THREE.Vector2( window.innerWidth, window.innerHeight ), scene, camera );
     outlinePass.edgeStrength = 4;
     outlinePass.edgeThickness = 7;
     outlinePass.edgeGlow = 1;
@@ -205,32 +300,37 @@ function init() {
 
    //Images
     imageGroup();
-    scene.add(groupImages);
+    //scene.add(groupImages);
 
     //Grain models
     var promiseVoxel = loadModel(voxelizedMesh, "./assets/models/180_voxelized.ply");
     var promiseMesh = loadModel(mesh, "./assets/models/180_1_11_1_PR_test_test042019.ply");
+    var promiseCurvature = loadModel(curvature, "./assets/models/180_curvature.ply");
 
-    Promise.all([promiseVoxel, promiseMesh]).then(result => {
+    Promise.all([promiseVoxel, promiseMesh, promiseCurvature
+                ]).then(result => {
 
-        extractFaces(voxelizedMesh);
-        extractFaces(mesh);
+        // extractFaces(voxelizedMesh);
+        // extractFaces(mesh);
 
-        voxelizedFaces = voxelizedMesh.geometry.faces.slice();
-        voxelizedFaces.sort((a,b) => {
-            return  voxelizedMesh.geometry.vertices[b.c].z - voxelizedMesh.geometry.vertices[a.c].z;
-        });
+        // voxelizedFaces = voxelizedMesh.geometry.faces.slice();
+        // voxelizedFaces.sort((a,b) => {
+        //     return  voxelizedMesh.geometry.vertices[b.c].z - voxelizedMesh.geometry.vertices[a.c].z;
+        // });
 
-        faces = mesh.geometry.faces.slice();
+        // faces = mesh.geometry.faces.slice();
 
         scaleModel(mesh, groupImages);
         scaleModel(voxelizedMesh, groupImages);
+        scaleModel(curvature, groupImages);
 
         mesh.rotation.z = 3*Math.PI/2-0.2;
         voxelizedMesh.rotation.z = Math.PI/2-0.2;
+        curvature.rotation.z = Math.PI/2-0.2;
 
         translateModel(mesh);
         translateModel(voxelizedMesh);
+        translateModel(curvature);
 
         var box = new THREE.Box3();
         box.setFromObject(groupImages);
@@ -302,9 +402,17 @@ function loadModel(model, filename) {
         loader.load( filename, resolve);
     });
     return p1.then(geometry => {
+        console.log(filename);
+        console.log(geometry);
         geometry.computeVertexNormals();
         geometry.center();
-		var material = new THREE.MeshStandardMaterial( { color: 0xbb7722, transparent: true, opacity: 0},  );
+		var material = new THREE.MeshStandardMaterial( { color: 0xbb7722,
+                                                         transparent: true,
+                                                         opacity: 0,
+                                                         side : THREE.DoubleSide}  );
+        if (filename.includes("curvature")) {
+            material.vertexColors = THREE.VertexColors;
+        }
         model.geometry = geometry;
         model.material = material;
 		model.castShadow = true;
@@ -341,12 +449,15 @@ function animate(t) {
     render();
     composer.render();
     if (animation) {
-        if (groupImages.children[0].visible) {
-            imageAnimation();
-        }
-        else {
-            meshAnimation();
-        }
+        // if (groupImages.children[0].visible) {
+        //     imageAnimation();
+        // }
+        // else if (voxelizedMesh.visible) {
+        //     meshAnimation();
+        // }
+        // else {
+            measurementAnimation();
+        // }
         animation = false;
     }
     TWEEN.update(t);
