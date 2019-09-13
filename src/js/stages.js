@@ -38,23 +38,29 @@ function growthAnimation() {
         var v  = scaleModel(meshes[currentIndex], meshes[currentIndex+1]);
         new TWEEN.Tween( meshes[currentIndex].scale).to({x:v.x, y:v.y, z:v.z}, 500).delay(0).onUpdate(() => {
             composer.render();
-
             translateModel(meshes[currentIndex]);
         }).onComplete(() => {
             document.getElementById("stages").textContent = stages[currentIndex+1] + " degrés-jours";
-            meshes[currentIndex+1].renderOrder = 0;
-            meshes[currentIndex+1].material.depthTest = false;
+            meshes[currentIndex].material.depthWrite = false;
+            meshes[currentIndex].material.additiveBlending = THREE.AdditiveBlending;
             scene.add(meshes[currentIndex+1]);
             var mesh1 = meshes[currentIndex];
             var mesh2 = meshes[currentIndex+1];
-            new TWEEN.Tween(mesh1.material).to({opacity:0.0}, 1900).onUpdate(()=> {
-               composer.render();
+            new TWEEN.Tween(mesh1.material).to({opacity:0.0}, 2000).onUpdate(()=> {
+                composer.render();
             }).onComplete(()=>{
                 scene.remove(mesh1);
             }).start();
-            new TWEEN.Tween(mesh2.material).to({opacity:1.0}, 2000).start();
+            new TWEEN.Tween(mesh2.material).to({opacity:1.0}, 1500).onUpdate(()=> {
+            }).start();
             currentIndex += 1;
         }).start();
+    } else {
+        scene.remove(meshes[currentIndex]);
+        currentIndex = 0;
+        document.getElementById("stages").textContent = stages[currentIndex] + " degrés-jours";
+        meshes[currentIndex].material.opacity = 1;
+        scene.add(meshes[currentIndex]);
     }
 }
 
@@ -73,6 +79,7 @@ function init() {
 	renderer = new THREE.WebGLRenderer( { antialias: true } );
 	renderer.setPixelRatio( window.devicePixelRatio );
 	renderer.setSize( window.innerWidth, window.innerHeight );
+    renderer.sortObjects = true;
 	document.body.appendChild( renderer.domElement );
 
     // Camera position
@@ -81,12 +88,9 @@ function init() {
     camera.rotation.set( 1.2059018157208456, 0.011554227087200301, 0.004413601415747621);
     camera.rotation.z = Math.PI/2;
 
-     composer = new EffectComposer( renderer );
+    composer = new EffectComposer( renderer );
     composer.addPass( new RenderPass( scene, camera ) );
-    // HorizontalBlurShader.uniforms.tDiffuse = 1;
-    // VerticalBlurShader.uniforms.tDiffuse = 1;
     HorizontalBlurShader.uniforms.h.value = 0.0005;
-    console.log(HorizontalBlurShader);
     VerticalBlurShader.uniforms.v.value = 0.0005;
 
 
@@ -145,8 +149,8 @@ function init() {
         // Light
         var light = new THREE.HemisphereLight( 0x443333, 0x111122 );
         scene.add( light );
-	    addShadowedLight( max.x+300 , min.y-100, 2000, 0xffffff, 1.0 );
-	    addShadowedLight( min.x-300, max.y+400, 2000, 0x777777, 1 );
+	    addShadowedLight( max.x+300 , min.y-100, 4000, 0xffffff, 1.0 );
+	    addShadowedLight( min.x-300, max.y+400, 4000, 0x777777, 1 );
 
 
     });
@@ -184,7 +188,6 @@ function extractChildren(model) {
 
     model.updateMatrix();
     var matrix = model.matrix;
-    console.log(faces.length);
     for (let i = 0; i < faces.length; i+=3) {
         let actualFace = faces.slice(i, i+3);
         let vertices = [];
@@ -273,7 +276,11 @@ function loadModel(model, filename) {
         geometry.computeVertexNormals();
         geometry.computeFaceNormals();
         geometry.center();
-		var material = new THREE.MeshStandardMaterial( { color: 0xbb7722, transparent: true, opacity: 0, side:THREE.DoubleSide},  );
+		var material = new THREE.MeshStandardMaterial( {
+            color: 0xbb7722,
+            transparent: true,
+            opacity: 0,
+            side:THREE.BackSide} );
         model.geometry = geometry;
         model.material = material;
 		model.castShadow = true;
@@ -317,6 +324,7 @@ function animate(t) {
 }
 
 function render() {
+    renderer.clear();
 	renderer.render( scene, camera );
 }
 
