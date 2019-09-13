@@ -41,7 +41,7 @@ function growthAnimation() {
             composer.render();
             translateModel(meshes[currentIndex]);
         }).onComplete(() => {
-            document.getElementById("stages").textContent = "Stade : " + stages[currentIndex+1] + " degrés-jours";
+            displayStageText(stages[currentIndex+1]);
             meshes[currentIndex].material.depthWrite = false;
             meshes[currentIndex].material.additiveBlending = THREE.AdditiveBlending;
             scene.add(meshes[currentIndex+1]);
@@ -61,16 +61,21 @@ function growthAnimation() {
     } else {
         scene.remove(meshes[currentIndex]);
         currentIndex = 0;
-        document.getElementById("stages").textContent = "Stade : " + stages[currentIndex] + " degrés-jours";
+        displayStageText(stages[currentIndex]);
         meshes[currentIndex].material.opacity = 1;
         scene.add(meshes[currentIndex]);
     }
 }
 
+function displayStageText(stage) {
+    document.getElementById("stages").innerHTML = "Stade : <b>" + stage + "</b> degrés-jours";
+}
+
 
 
 function init() {
-    document.getElementById("stages").textContent = "Stade : " + stages[currentIndex] + " degrés-jours";
+    displayStageText(stages[currentIndex]);
+
     // Init scene
 	scene = new THREE.Scene();
 	scene.background = new THREE.Color( 0xcccccc );

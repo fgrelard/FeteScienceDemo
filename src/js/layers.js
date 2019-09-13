@@ -12,7 +12,7 @@ import {PLYLoader} from '../../assets/js/three/examples/jsm/loaders/PLYLoader.js
 var camera, controls, scene, renderer;
 var parts = ["BundleLeft", "BundleRight", "Embryo", "InnerRegion", "OuterGrain"];
 var legend = ["Faisceau gauche", "Faisceau droit", "Embryon", "Région interne", "Région externe"];
-var colors = ["#99cc99", "#99cc99", "#cccc22", "#bb9977",  "#bb7722"];
+var colors = ["#55ff55", "#55ff55", "#ffff22", "#cc5522",  "#bb7722"];
 var meshes = [];
 
 function translateEmbryo(embryo, innerRegion) {
@@ -24,12 +24,25 @@ function translateEmbryo(embryo, innerRegion) {
     embryo.material.opacity = 0.8;
 }
 
+function translateBundle(bundle, innerRegion, left=true) {
+    var box = new THREE.Box3();
+    box.setFromObject(innerRegion);
+    if (left) {
+        bundle.position.x = box.min.x + 45;
+        bundle.position.z = 90;
+    }
+    else {
+        bundle.position.x = box.max.x - 45;
+        bundle.position.z = 10;
+    }
+}
+
 
 function init() {
     // Init scene
 	scene = new THREE.Scene();
 	scene.background = new THREE.Color( 0xcccccc );
-	scene.fog = new THREE.FogExp2( 0xcccccc, 0.0001 );
+	scene.fog = new THREE.FogExp2( 0xcccccc, 0.00007 );
 
     // Renderer = HTML canvas
 	renderer = new THREE.WebGLRenderer( { antialias: true } );
@@ -38,7 +51,7 @@ function init() {
 	document.body.appendChild( renderer.domElement );
 
     // Camera position, adding layers
-	camera = new THREE.PerspectiveCamera( 35, window.innerWidth / window.innerHeight, 1, 10000 );
+	camera = new THREE.PerspectiveCamera( 35, window.innerWidth / window.innerHeight, 1, 100000 );
 	camera.position.set( 0, 500, 2000 );
 
     // Ground
@@ -79,6 +92,8 @@ function init() {
             mesh.position.y = boxSize.y / 2;
         }
         translateEmbryo(meshes[2], meshes[3]);
+        translateBundle(meshes[0], meshes[3]);
+        translateBundle(meshes[1], meshes[3], false);
     });
 
 
@@ -127,7 +142,7 @@ function loadModel(model, filename, i) {
     return p1.then(geometry => {
         geometry.computeVertexNormals();
         geometry.center();
-		var material = new THREE.MeshStandardMaterial( { color: colors[i], transparent: true, opacity: 0.5, side: THREE.BackSide},  );
+		var material = new THREE.MeshStandardMaterial( { color: colors[i], transparent: true, opacity: 0.5, side: THREE.BackSide, depthWrite:false},  );
         model.geometry = geometry;
         model.material = material;
 		model.castShadow = true;
