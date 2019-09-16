@@ -15,29 +15,11 @@ var legend = ["Faisceau gauche", "Faisceau droit", "Embryon", "Région interne",
 var colors = ["#55ff55", "#55ff55", "#ffff22", "#cc5522",  "#bb7722"];
 var meshes = [];
 
-function translateEmbryo(embryo, innerRegion) {
-    var box = new THREE.Box3();
-    box.setFromObject(innerRegion);
-    embryo.position.y = box.min.y-25;
-    embryo.position.z = 60;
-    embryo.position.x = 20;
-    embryo.material.opacity = 0.8;
-}
 
-function translateBundle(bundle, innerRegion, left=true) {
-    var box = new THREE.Box3();
-    box.setFromObject(innerRegion);
-    if (left) {
-        bundle.position.x = box.min.x + 45;
-        bundle.position.z = 90;
-    }
-    else {
-        bundle.position.x = box.max.x - 45;
-        bundle.position.z = 10;
-    }
-}
-
-
+/**
+ * Main function initializing scene
+ * camera, renderer, lights...
+ */
 function init() {
     // Init scene
 	scene = new THREE.Scene();
@@ -134,6 +116,52 @@ function init() {
 	window.addEventListener( 'resize', onWindowResize, false );
 }
 
+
+/**
+ * Translating the embryo at the right position
+ * Hard-coded values, need to change for different models
+ * @param {} embryo
+ * @param {} innerRegion
+ */
+function translateEmbryo(embryo, innerRegion) {
+    var box = new THREE.Box3();
+    box.setFromObject(innerRegion);
+    embryo.position.y = box.min.y-25;
+    embryo.position.z = 60;
+    embryo.position.x = 20;
+    embryo.material.opacity = 0.8;
+}
+
+
+/**
+ * Translating the bundles  at the right position
+ * Hard-coded values, need to change for different models
+ * @param {} bundle
+ * @param {} innerRegion
+ * @param {} true
+ */
+function translateBundle(bundle, innerRegion, left=true) {
+    var box = new THREE.Box3();
+    box.setFromObject(innerRegion);
+    if (left) {
+        bundle.position.x = box.min.x + 45;
+        bundle.position.z = 90;
+    }
+    else {
+        bundle.position.x = box.max.x - 45;
+        bundle.position.z = 10;
+    }
+}
+
+
+
+/**
+ * Load ply model and assigns a layer
+ * @param {THREE.Mesh} model
+ * @param {String} filename
+ * @param {Number} i index of model for layers
+ * @returns {Promise}
+ */
 function loadModel(model, filename, i) {
     var loader = new PLYLoader();
     var p1 =  new Promise(resolve => {
@@ -154,6 +182,14 @@ function loadModel(model, filename, i) {
 }
 
 
+/**
+ * Add light inducing shadows
+ * @param {Number} x x position of light
+ * @param {Number} y y position of light
+ * @param {Number} z z position of light
+ * @param {hex} color light color
+ * @param {Number} intensity
+ */
 function addShadowedLight( x, y, z, color, intensity ) {
 	var directionalLight = new THREE.DirectionalLight( color, intensity );
     for (var i  = 0; i < legend.length+1; i++) {
@@ -175,12 +211,18 @@ function addShadowedLight( x, y, z, color, intensity ) {
 }
 
 
+/**
+ * Updates parameters when window is resized
+ */
 function onWindowResize() {
 	camera.aspect = window.innerWidth / window.innerHeight;
 	camera.updateProjectionMatrix();
 	renderer.setSize( window.innerWidth, window.innerHeight );
 }
 
+/**
+ * Render loop
+ */
 function animate() {
 	requestAnimationFrame( animate );
 	controls.update(); // only required if controls.enableDamping = true, or if controls.autoRotate = true
@@ -188,6 +230,9 @@ function animate() {
 
 }
 
+/**
+ * Render
+ */
 function render() {
 	renderer.render( scene, camera );
 }

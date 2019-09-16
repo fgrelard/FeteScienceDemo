@@ -26,6 +26,10 @@ var animation = false;
 var meshes = [];
 var composer;
 
+/**
+ * Event raised when "SPACE-BAR" is pressed
+ * @param {} event
+ */
 document.body.onkeyup  = function (event) {
     //Press space bar
     if (event.keyCode == 32) {
@@ -33,46 +37,12 @@ document.body.onkeyup  = function (event) {
     }
 };
 
-function growthAnimation() {
-    if (currentIndex < stages.length-1)  {
-        var v  = scaleModel(meshes[currentIndex], meshes[currentIndex+1]);
-        var initialScale = meshes[currentIndex].scale.clone();
-        new TWEEN.Tween( meshes[currentIndex].scale).to({x:v.x, y:v.y, z:v.z}, 500).delay(0).onUpdate(() => {
-            composer.render();
-            translateModel(meshes[currentIndex]);
-        }).onComplete(() => {
-            displayStageText(stages[currentIndex+1]);
-            meshes[currentIndex].material.depthWrite = false;
-            meshes[currentIndex].material.additiveBlending = THREE.AdditiveBlending;
-            scene.add(meshes[currentIndex+1]);
-            var mesh1 = meshes[currentIndex];
-            var mesh2 = meshes[currentIndex+1];
-            new TWEEN.Tween(mesh1.material).to({opacity:0.0}, 1600).onUpdate(()=> {
-                composer.render();
-            }).onComplete(()=>{
-                mesh1.scale.copy(initialScale);
-                translateModel(mesh1);
-                scene.remove(mesh1);
-            }).start();
-            new TWEEN.Tween(mesh2.material).to({opacity:1.0}, 1500).onUpdate(()=> {
-            }).start();
-            currentIndex += 1;
-        }).start();
-    } else {
-        scene.remove(meshes[currentIndex]);
-        currentIndex = 0;
-        displayStageText(stages[currentIndex]);
-        meshes[currentIndex].material.opacity = 1;
-        scene.add(meshes[currentIndex]);
-    }
-}
-
-function displayStageText(stage) {
-    document.getElementById("stages").innerHTML = "Stade : <b>" + stage + "</b> degrés-jours";
-}
 
 
-
+/**
+ * Main function, setting up models,
+ * light, camera...
+ */
 function init() {
     displayStageText(stages[currentIndex]);
 
@@ -124,7 +94,6 @@ function init() {
 	scene.add( plane );
 
     //Grain models
-
     var promises = [];
     for (let stage of stages) {
         let mesh = new THREE.Mesh();
@@ -161,14 +130,70 @@ function init() {
 
     });
 
-
-
 	window.addEventListener( 'resize', onWindowResize, false );
 }
 
+/**
+ * Transition between two stages with blur
+ * 1 - Scale the grain up depending on the size
+ * of the bounding box of the "next" grain
+ * 2 - Opacity morph: decreases for current grain,
+ * increases for next
+ */
+function growthAnimation() {
+    if (currentIndex < stages.length-1)  {
+        var v  = scaleModel(meshes[currentIndex], meshes[currentIndex+1]);
+        var initialScale = meshes[currentIndex].scale.clone();
+        //Scale
+        new TWEEN.Tween( meshes[currentIndex].scale).to({x:v.x, y:v.y, z:v.z}, 500).delay(0).onUpdate(() => {
+            composer.render();
+            translateModel(meshes[currentIndex]);
+        }).onComplete(() => {
+            //Changing opacity
+            displayStageText(stages[currentIndex+1]);
+            meshes[currentIndex].material.depthWrite = false;
+            meshes[currentIndex].material.additiveBlending = THREE.AdditiveBlending;
+            scene.add(meshes[currentIndex+1]);
+            var mesh1 = meshes[currentIndex];
+            var mesh2 = meshes[currentIndex+1];
+            new TWEEN.Tween(mesh1.material).to({opacity:0.0}, 1600).onUpdate(()=> {
+                composer.render();
+            }).onComplete(()=>{
+                mesh1.scale.copy(initialScale);
+                translateModel(mesh1);
+                scene.remove(mesh1);
+            }).start();
+            new TWEEN.Tween(mesh2.material).to({opacity:1.0}, 1500).onUpdate(()=> {
+            }).start();
+            currentIndex += 1;
+        }).start();
+    } else {
+        //Last stage reached => going back to first stage
+        scene.remove(meshes[currentIndex]);
+        currentIndex = 0;
+        displayStageText(stages[currentIndex]);
+        meshes[currentIndex].material.opacity = 1;
+        scene.add(meshes[currentIndex]);
+    }
+}
 
 
+/**
+ * Display stage in text area
+ * @param {String} stage
+ */
+function displayStageText(stage) {
+    document.getElementById("stages").innerHTML = "Stade : <b>" + stage + "</b> degrés-jours";
+}
 
+
+/**
+ * Scale the model according to the bounding
+ * box of a reference model
+ * @param {THREE.Mesh} model the model
+ * @param {THREE.Mesh} reference reference model
+ * @returns {THREE.Vector3} (x,y,z) scale vector
+ */
 function scaleModel(model, reference) {
     var box = new THREE.Box3();
     box.setFromObject( reference );
@@ -180,6 +205,11 @@ function scaleModel(model, reference) {
                              referenceRadius.z / modelRadius.z);
 }
 
+/**
+ * Translate the model so that it is above
+ * the plane z=0
+ * @param {THREE.Mesh} model
+ */
 function translateModel(model) {
     var box = new THREE.Box3();
     box.setFromObject( model );
@@ -188,6 +218,11 @@ function translateModel(model) {
     model.position.z = z/2;
 }
 
+
+/**
+ * Extract faces for this model
+ * @param {THREE.Mesh} model
+ */
 function extractChildren(model) {
     var positions = model.geometry.attributes.position.array;
     var faces = model.geometry.index.array;
@@ -214,6 +249,17 @@ function extractChildren(model) {
     }
 }
 
+/**
+ * Morphs a model to next model by updating morphAttributes
+ * According to referenceModel: scaled down version of
+ * nextModel with same bounding box as model
+ * Computes, for each face of model, the closest face
+ * on referenceModel in terms of euclidean distance
+ * on the center of the faces
+ * @param {THREE.Mesh} model
+ * @param {THREE.Mesh} referenceModel
+ * @param {THREE.Mesh} nextModel
+ */
 function addMorphTargets(model, referenceModel, nextModel) {
 
     model.children.forEach(function(child) {
@@ -273,6 +319,12 @@ function addMorphTargets(model, referenceModel, nextModel) {
     });
 }
 
+/**
+ * Load ply model
+ * @param {THREE.Mesh} model the mesh to load the ply in
+ * @param {String} filename
+ * @returns {Promise}
+ */
 function loadModel(model, filename) {
     var loader = new PLYLoader();
     var p1 =  new Promise(resolve => {
@@ -295,6 +347,14 @@ function loadModel(model, filename) {
     });
 }
 
+/**
+ * Add light inducing shadows
+ * @param {Number} x x position of light
+ * @param {Number} y y position of light
+ * @param {Number} z z position of light
+ * @param {hex} color light color
+ * @param {Number} intensity
+ */
 function addShadowedLight( x, y, z, color, intensity ) {
 	var directionalLight = new THREE.DirectionalLight( color, intensity );
 	directionalLight.position.set( x, y, z );
@@ -312,13 +372,18 @@ function addShadowedLight( x, y, z, color, intensity ) {
 	directionalLight.shadow.bias = - 0.001;
 }
 
-
+/**
+ * Updates parameters when window is resized
+ */
 function onWindowResize() {
 	camera.aspect = window.innerWidth / window.innerHeight;
 	camera.updateProjectionMatrix();
 	renderer.setSize( window.innerWidth, window.innerHeight );
 }
 
+/**
+ * Render loop
+ */
 function animate(t) {
     window.requestAnimationFrame( animate );
     render();
@@ -326,9 +391,13 @@ function animate(t) {
         growthAnimation();
         animation=false;
     }
+    //Update TWEEN for transition
     TWEEN.update(t);
 }
 
+/**
+ * Render
+ */
 function render() {
     renderer.clear();
 	renderer.render( scene, camera );

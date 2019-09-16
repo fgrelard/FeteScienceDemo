@@ -22,13 +22,21 @@ var camera, controls, scene, renderer;
 var animation = false;
 
 var groupImages, voxelizedMesh=new THREE.Mesh(), mesh=new THREE.Mesh(), curvature = new THREE.Mesh();
+
 var previousPlanePosition = 0;
-var sweepingPlane, sweepingPlane2;
+
+//Arrays containing faces of models
 var voxelizedFaces = [], faces = [];
+
+//Outline of sweeping planes
+var sweepingPlane, sweepingPlane2;
 var composer;
 var outlinePass;
 
-
+/**
+ * Event raised when "SPACE-BAR" is pressed
+ * @param {} event
+ */
 document.body.onkeyup = function (event) {
     //Press space bar
     if (event.keyCode == 32) {
@@ -37,6 +45,10 @@ document.body.onkeyup = function (event) {
 };
 
 
+/**
+ * Image stack
+ * Loading planes with images as texture
+ */
 function imageGroup() {
     var nbImages = 24;
     groupImages = new THREE.Group();
@@ -62,16 +74,21 @@ function imageGroup() {
     camera.position.z = imgPlane.position.z*2;
 }
 
+/**
+ * Segmentation animation
+ * Image stack disappears, segmentation appears
+ */
 function imageAnimation() {
     document.getElementById("step").textContent = "Segmentation du grain";
 
+    //Reset position
     sweepingPlane.position.set(0,0,49);
-
     sweepingPlane.visible = true;
     voxelizedMesh.visible = true;
 
     voxelizedMesh.geometry.faces.length = 1;
     voxelizedMesh.updateMatrix();
+
     var scaling = new THREE.Vector3(), rot = new THREE.Quaternion(), pos = new THREE.Vector3();
     voxelizedMesh.matrix.decompose(pos, rot, scaling);
     var vertices = voxelizedMesh.geometry.vertices.slice();
@@ -106,25 +123,29 @@ function imageAnimation() {
     }).start();
 }
 
+/**
+ * Mesh extraction animation
+ * Segmentation disappears, mesh appears
+ */
 function meshAnimation() {
     document.getElementById("step").textContent = "Extraction du maillage";
+
+    //Reset
     sweepingPlane2.position.set(0, -30, 0);
     translateModel(sweepingPlane2);
     sweepingPlane2.visible = true;
-
     mesh.visible = true;
-
     mesh.opacity = 0;
+
     mesh.geometry.faces.length = 1;
     mesh.updateMatrix();
-
     voxelizedMesh.updateMatrix();
-
 
     var verticesV = voxelizedMesh.geometry.vertices.slice();
     var vertices = mesh.geometry.vertices.slice();
 
     previousPlanePosition = sweepingPlane2.position.y;
+
     var box = new THREE.Box3();
     box.setFromObject(mesh);
 
@@ -164,6 +185,17 @@ function meshAnimation() {
     }).start();
 }
 
+/**
+ * Function allowing to create thicker arrows
+ * Uses arrow helper to init matrices
+ * And fits cylinders instead of lines
+ * @param {THREE.Vector3} dir
+ * @param {THREE.Vector3} origin
+ * @param {Number} length
+ * @param {hex} color
+ * @param {Number} width width of arrow
+ * @returns {THREE.Group} the arrow : 2 cones + 1 cylinder
+ */
 function createArrow(dir, origin, length, color, width) {
 
     var arrowHelper = new THREE.ArrowHelper( dir.clone().normalize(), origin, length/2, color, 0.1*length/2 );
@@ -193,12 +225,22 @@ function createArrow(dir, origin, length, color, width) {
     return group;
 }
 
+/**
+ * Morphometry animation
+ * 1 - Length from bounding box with arrows
+ * appearing inside the mesh
+ * 2 - Curvature values appearing
+ */
 function measurementAnimation() {
     document.getElementById("step").textContent = "Mesures : dimensions du grain";
+
+    //Reset
     curvature.material.opacity = 0;
 
+    //Necessary to see arrows inside the mesh
     mesh.material.depthWrite = false;
     curvature.material.depthWrite = false;
+
      new TWEEN.Tween(mesh.material).to({opacity:0.3}, 2000).onUpdate(()=> {
      }).onComplete(()=>{
          var box = new THREE.Box3();
@@ -211,10 +253,13 @@ function measurementAnimation() {
          var arrowZ = createArrow(new THREE.Vector3(0, 0, 1), origin, size.z, 0xcc2222, width);
          scene.add(arrowX, arrowY, arrowZ);
 
+         //Revealing length measurements one by one
          new TWEEN.Tween(arrowX.material).to({opacity:1.0}, 1000).delay(2000).onComplete(() => {
              new TWEEN.Tween(arrowY.material).to({opacity:1.0}, 1000).delay(500).onComplete(() => {
                  new TWEEN.Tween(arrowZ.material).to({opacity:1.0}, 1000).delay(500).onComplete(() => {
                      new TWEEN.Tween(mesh.material).delay(3000).to({opacity:0.0}, 2000).onUpdate(()=> {
+
+                         //Curvature mesh reveal
                          document.getElementById("step").textContent = "Mesures : courbure";
                          curvature.visible = true;
                          arrowX.visible = false;
@@ -234,6 +279,10 @@ function measurementAnimation() {
 
 }
 
+/**
+ * Main function with initialization
+ * @returns {}
+ */
 function init() {
     document.getElementById("step").textContent = "Image 3D (scanner - tomographie)";
 
@@ -349,12 +398,10 @@ function init() {
 
         //Controls
         controls = new OrbitControls( camera, renderer.domElement );
-        //camera.lookAt();
-
 
         // Light
         var light = new THREE.HemisphereLight( 0x443333, 0x111122 );
-        // scene.add( light );
+        scene.add( light );
 	    addShadowedLight( max.x+10 , min.y-10, max.z-20, 0xffffff, 1.8 );
 	    addShadowedLight( min.x-10, max.y+10, max.z+50, 0x777777, 1 );
 
@@ -364,6 +411,10 @@ function init() {
 	window.addEventListener( 'resize', onWindowResize, false );
 }
 
+/**
+ * Extracting faces from model
+ * @param {THREE.Mesh} model
+ */
 function extractFaces(model) {
     var faceIndices = model.geometry.index.array;
     var geometry = new THREE.Geometry();
@@ -384,6 +435,11 @@ function extractFaces(model) {
     model.geometryNeedsUpdate = true;
 }
 
+/**
+ * Scaling the model according to reference bounding box
+ * @param {THREE.Mesh} model
+ * @param {THREE.Mesh} reference
+ */
 function scaleModel(model, reference) {
     var box = new THREE.Box3();
     box.setFromObject( reference );
@@ -393,6 +449,11 @@ function scaleModel(model, reference) {
     model.scale.set(r, r, r);
 }
 
+/**
+ * Translate the model so that it is above
+ * the plane z=0
+ * @param {THREE.Mesh} model
+ */
 function translateModel(model) {
     var box = new THREE.Box3();
     box.setFromObject( model );
@@ -401,6 +462,12 @@ function translateModel(model) {
     model.position.z = z/2;
 }
 
+/**
+ * Load ply model
+ * @param {THREE.Mesh} model the mesh to load the ply in
+ * @param {String} filename
+ * @returns {Promise}
+ */
 function loadModel(model, filename) {
     var loader = new PLYLoader();
     var p1 =  new Promise(resolve => {
@@ -420,12 +487,21 @@ function loadModel(model, filename) {
         }
         model.geometry = geometry;
         model.material = material;
+        //False initially, revealed by animations
         model.visible = false;
 		model.castShadow = true;
 		model.receiveShadow = true;
     });
 }
 
+/**
+ * Add light inducing shadows
+ * @param {Number} x x position of light
+ * @param {Number} y y position of light
+ * @param {Number} z z position of light
+ * @param {hex} color light color
+ * @param {Number} intensity
+ */
 function addShadowedLight( x, y, z, color, intensity ) {
 	var directionalLight = new THREE.DirectionalLight( color, intensity );
 	directionalLight.position.set( x, y, z );
@@ -444,12 +520,18 @@ function addShadowedLight( x, y, z, color, intensity ) {
 }
 
 
+/**
+ * Updates parameters when window is resized
+ */
 function onWindowResize() {
 	camera.aspect = window.innerWidth / window.innerHeight;
 	camera.updateProjectionMatrix();
 	renderer.setSize( window.innerWidth, window.innerHeight );
 }
 
+/**
+ * Render loop
+ */
 function animate(t) {
     window.requestAnimationFrame( animate );
     render();
@@ -476,6 +558,9 @@ function animate(t) {
     TWEEN.update(t);
 }
 
+/**
+ * Render
+ */
 function render() {
 	renderer.render( scene, camera );
 }
