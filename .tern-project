@@ -1,0 +1,15 @@
+{
+    "libs": [
+        "ecmascript"
+    ],
+    "loadEagerly": [
+        "assets/js/Tween.js",
+        "assets/js/three/build/three.module.js",
+        "assets/js/three/**/*.js"
+    ],
+    "async": false,
+    "plugins": {
+        "es_modules": {},
+        "node": {}
+    }
+}

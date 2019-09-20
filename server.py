@@ -20,7 +20,7 @@ class myHandler(http.server.BaseHTTPRequestHandler):
 			 self.path = "/src/workflow.html"
 
 		elif self.path.endswith(".html"):
-			self.path="/src/" + self.path
+			self.path = self.path
 
 		try:
 			#Check the file extension required and
@@ -52,6 +52,7 @@ class myHandler(http.server.BaseHTTPRequestHandler):
 			if sendReply == True:
 				#Open the static file requested and send it
 				f = curdir + sep + self.path
+				print(f)
 				self.send_response(200)
 				self.send_header('Content-type',mimetype)
 				self.end_headers()

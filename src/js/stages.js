@@ -69,7 +69,6 @@ function init() {
     HorizontalBlurShader.uniforms.h.value = 0.0005;
     VerticalBlurShader.uniforms.v.value = 0.0005;
 
-
     var hblur = new ShaderPass( HorizontalBlurShader );
     composer.addPass( hblur );
 
@@ -82,7 +81,6 @@ function init() {
     renderer.gammaInput = true;
 	renderer.gammaOutput = true;
     renderer.shadowMap.enabled = true;
-
 
     // Ground
 	var plane = new THREE.Mesh(
@@ -101,6 +99,7 @@ function init() {
         promises.push(promise);
     }
 
+
     Promise.all(promises).then(result => {
         for (let mesh of result) {
             translateModel(mesh);
@@ -116,18 +115,15 @@ function init() {
 
         //Camera
         camera.up = new THREE.Vector3(0,0,1);
+
         //Controls
         controls = new OrbitControls( camera, renderer.domElement );
-        //camera.lookAt();
-
 
         // Light
         var light = new THREE.HemisphereLight( 0x443333, 0x111122 );
         scene.add( light );
 	    addShadowedLight( max.x+300 , min.y-100, 4000, 0xffffff, 1.0 );
 	    addShadowedLight( min.x-300, max.y+400, 4000, 0x777777, 1 );
-
-
     });
 
 	window.addEventListener( 'resize', onWindowResize, false );
