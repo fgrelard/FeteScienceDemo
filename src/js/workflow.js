@@ -44,6 +44,11 @@ document.body.onkeyup = function (event) {
     }
 };
 
+document.getElementById("play").onclick = function(event) {
+    animation = true;
+};
+
+
 
 /**
  * Image stack

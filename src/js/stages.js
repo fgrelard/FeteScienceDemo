@@ -38,6 +38,10 @@ document.body.onkeyup  = function (event) {
 };
 
 
+document.getElementById("play").onclick = function(event) {
+    animation = true;
+};
+
 
 /**
  * Main function, setting up models,
