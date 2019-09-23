@@ -407,7 +407,7 @@ function init() {
         // Light
         var light = new THREE.HemisphereLight( 0x443333, 0x111122 );
         scene.add( light );
-	    addShadowedLight( max.x+10 , min.y-10, max.z-20, 0xffffff, 1.8 );
+	    addShadowedLight( max.x+10 , min.y-10, max.z-20, 0xffffff, 1.2 );
 	    addShadowedLight( min.x-10, max.y+10, max.z+50, 0x777777, 1 );
 
     });

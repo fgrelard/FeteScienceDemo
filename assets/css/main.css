@@ -75,10 +75,11 @@ a {
     right:5%;
     bottom: 50%;
     cursor:pointer;
+    width: 9.5vw;
+    min-width: 40px;
+    max-width: 119px;
 }
 #play{
-    -webkit-animation: bouncejs-playVisible 1800ms linear 1 both;
-    animation: bouncejs-playVisible 1800ms linear 1 both;
     opacity:0.8;
 }
 #play:hover {
