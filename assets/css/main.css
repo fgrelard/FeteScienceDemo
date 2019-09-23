@@ -380,7 +380,8 @@ p.sign{
   /* font-size: 1.8em; */
 }
 .menu:hover, .menu:active {
-  pointer-events: all;
+    pointer-events: all;
+    cursor:pointer;
 }
 .label {
   display: inline-block;
