@@ -84,7 +84,7 @@ function imageGroup() {
  * Image stack disappears, segmentation appears
  */
 function imageAnimation() {
-    document.getElementById("step").textContent = "Segmentation du grain";
+    document.getElementById("stages").textContent = "Segmentation du grain";
 
     //Reset position
     sweepingPlane.position.set(0,0,49);
@@ -133,7 +133,7 @@ function imageAnimation() {
  * Segmentation disappears, mesh appears
  */
 function meshAnimation() {
-    document.getElementById("step").textContent = "Extraction du maillage";
+    document.getElementById("stages").textContent = "Extraction du maillage";
 
     //Reset
     sweepingPlane2.position.set(0, -30, 0);
@@ -237,7 +237,7 @@ function createArrow(dir, origin, length, color, width) {
  * 2 - Curvature values appearing
  */
 function measurementAnimation() {
-    document.getElementById("step").textContent = "Mesures : dimensions du grain";
+    document.getElementById("stages").textContent = "Mesures : dimensions du grain";
 
     //Reset
     curvature.material.opacity = 0;
@@ -265,7 +265,7 @@ function measurementAnimation() {
                      new TWEEN.Tween(mesh.material).delay(3000).to({opacity:0.0}, 2000).onUpdate(()=> {
 
                          //Curvature mesh reveal
-                         document.getElementById("step").textContent = "Mesures : courbure";
+                         document.getElementById("stages").textContent = "Mesures : courbure";
                          curvature.visible = true;
                          arrowX.visible = false;
                          arrowY.visible = false;
@@ -289,7 +289,7 @@ function measurementAnimation() {
  * @returns {}
  */
 function init() {
-    document.getElementById("step").textContent = "Image 3D (scanner - tomographie)";
+    document.getElementById("stages").textContent = "Image 3D (scanner - tomographie)";
 
     // Init scene
 	scene = new THREE.Scene();
@@ -556,7 +556,7 @@ function animate(t) {
             for (let child of groupImages.children) {
                 child.visible = true;
             }
-            document.getElementById("step").textContent = "Image 3D (scanner - tomographie)";
+            document.getElementById("stages").textContent = "Image 3D (scanner - tomographie)";
         }
         animation = false;
     }

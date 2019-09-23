@@ -64,9 +64,8 @@ function init() {
 
     // Camera position
 	camera = new THREE.PerspectiveCamera( 35, window.innerWidth / window.innerHeight, 1, 1000000 );
-	camera.position.set( 4818.695454365718, -21913.811891713613,  12831.135980051007198);
-    camera.rotation.set( 1.2059018157208456, 0.011554227087200301, 0.004413601415747621);
-    camera.rotation.z = Math.PI/2;
+    // camera.rotation.set( 1.2059018157208456, 0.011554227087200301, 0.004413601415747621);
+
 
     composer = new EffectComposer( renderer );
     composer.addPass( new RenderPass( scene, camera ) );
@@ -105,6 +104,7 @@ function init() {
 
 
     Promise.all(promises).then(result => {
+        var maxSize = new THREE.Vector3();
         for (let mesh of result) {
             translateModel(mesh);
             meshes.push(mesh);
@@ -113,7 +113,14 @@ function init() {
             box.setFromObject(mesh);
             var min = box.min;
             var max = box.max;
+            var size = box.getSize();
+            if (size.z > maxSize.z) {
+                maxSize = size;
+            }
         }
+        camera.position.z = maxSize.z/2;
+        camera.position.y = -25000;
+//        camera.rotation.y = Math.PI/2;
         meshes[0].material.opacity = 1.0;
         scene.add(meshes[0]);
 
@@ -122,6 +129,8 @@ function init() {
 
         //Controls
         controls = new OrbitControls( camera, renderer.domElement );
+        controls.target.z = 1000;
+        controls.update();
 
         // Light
         var light = new THREE.HemisphereLight( 0x443333, 0x111122 );

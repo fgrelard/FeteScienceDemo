@@ -47,8 +47,6 @@ function init() {
 
 	plane.receiveShadow = true;
 
-	// controls
-	controls = new OrbitControls( camera, renderer.domElement );
 
     var promises = [];
     for (let i = 0; i < parts.length; i++) {
@@ -68,14 +66,19 @@ function init() {
         var box = new THREE.Box3();
         box.setFromObject(lastPart);
         var boxSize = box.getSize();
-        camera.position.y = boxSize.y;
-        camera.position.z = 4000;
+        //camera.position.y = boxSize.y;
+        camera.position.z = 3000;
         for (let mesh of meshes) {
             mesh.position.y = boxSize.y / 2;
         }
         translateEmbryo(meshes[2], meshes[3]);
         translateBundle(meshes[0], meshes[3]);
         translateBundle(meshes[1], meshes[3], false);
+
+        // controls
+	    controls = new OrbitControls( camera, renderer.domElement );
+        controls.target.y = boxSize.y/2;
+        controls.update();
     });
 
 
@@ -83,6 +86,9 @@ function init() {
 
     // Light
     var light = new THREE.HemisphereLight( 0x443333, 0x111122 );
+    scene.add( light );
+	addShadowedLight( 1000, 1000, 1000, 0xffffff, 1.35 );
+	addShadowedLight( 1000, 1000, -1000, 0x777777, 1 );
 
     //Enable layers
     for (var i = 0; i < legend.length+1; i++) {
@@ -91,9 +97,7 @@ function init() {
         plane.layers.set(i);
     }
 
-    scene.add( light );
-	addShadowedLight( 1000, 1000, 1000, 0xffffff, 1.35 );
-	addShadowedLight( 1000, 1000, - 1000, 0x777777, 1 );
+
 
     var layers = {};
     for (let leg of legend) {
@@ -225,7 +229,6 @@ function onWindowResize() {
  */
 function animate() {
 	requestAnimationFrame( animate );
-	controls.update(); // only required if controls.enableDamping = true, or if controls.autoRotate = true
 	render();
 
 }
