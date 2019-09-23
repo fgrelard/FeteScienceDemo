@@ -379,7 +379,7 @@ p.sign{
   z-index: 1000;
   /* font-size: 1.8em; */
 }
-.menu:hover {
+.menu:hover, .menu:active {
   pointer-events: all;
 }
 .label {
