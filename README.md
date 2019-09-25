@@ -1,5 +1,6 @@
 # FeteScienceDemo
 
+Now available at [https://fgrelard.github.io/FeteScienceDemo](https://fgrelard.github.io/FeteScienceDemo)
 
 ![Wheat grain](docs/visupoc2.png)
 
@@ -13,7 +14,7 @@ git submodule update
 
 ## Launching the app
 ```
-browser src/layers.html
+browser layers.html
 ```
 
 If your browser forbids CORS requests, you can access the app through a webserver built by the `server.py` script.
